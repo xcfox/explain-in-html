@@ -1,0 +1,375 @@
+{
+  "operations": [
+    {
+      "kind": "query",
+      "domain": "用户与组织",
+      "name": "me",
+      "description": "当前登录用户及其工作区成员关系。",
+      "args": [],
+      "returns": "User!"
+    },
+    {
+      "kind": "query",
+      "domain": "用户与组织",
+      "name": "workspace",
+      "description": "按 slug 获取工作区详情。",
+      "args": [
+        {
+          "name": "slug",
+          "type": "String!",
+          "desc": "工作区 URL 短标识"
+        }
+      ],
+      "returns": "Workspace"
+    },
+    {
+      "kind": "query",
+      "domain": "项目",
+      "name": "project",
+      "description": "按 ID 获取项目，含迭代列表。",
+      "args": [
+        {
+          "name": "id",
+          "type": "ID!",
+          "desc": "项目 ID"
+        }
+      ],
+      "returns": "Project"
+    },
+    {
+      "kind": "query",
+      "domain": "项目",
+      "name": "projects",
+      "description": "工作区下的项目列表。",
+      "args": [
+        {
+          "name": "workspaceId",
+          "type": "ID!",
+          "desc": "所属工作区"
+        },
+        {
+          "name": "includeArchived",
+          "type": "Boolean",
+          "def": "false",
+          "desc": "是否包含已归档"
+        }
+      ],
+      "returns": "[Project!]!"
+    },
+    {
+      "kind": "query",
+      "domain": "任务",
+      "name": "task",
+      "description": "任务详情，含子任务、指派人、标签。",
+      "args": [
+        {
+          "name": "id",
+          "type": "ID!",
+          "desc": "任务 ID"
+        }
+      ],
+      "returns": "Task"
+    },
+    {
+      "kind": "query",
+      "domain": "任务",
+      "name": "tasks",
+      "description": "项目内任务的分页查询，支持状态/指派人/标签过滤。",
+      "args": [
+        {
+          "name": "projectId",
+          "type": "ID!",
+          "desc": "所属项目"
+        },
+        {
+          "name": "filter",
+          "type": "TaskFilter",
+          "desc": "过滤条件"
+        },
+        {
+          "name": "page",
+          "type": "PageInput",
+          "desc": "游标分页"
+        }
+      ],
+      "returns": "TaskPage!",
+      "returnsDesc": "分页结果"
+    },
+    {
+      "kind": "query",
+      "domain": "搜索",
+      "name": "search",
+      "description": "跨任务 / 项目 / 评论的全文搜索。",
+      "args": [
+        {
+          "name": "text",
+          "type": "String!",
+          "desc": "关键词"
+        },
+        {
+          "name": "first",
+          "type": "Int",
+          "def": "20",
+          "desc": "返回数量上限"
+        }
+      ],
+      "returns": "[SearchResult!]!"
+    },
+    {
+      "kind": "mutation",
+      "domain": "任务",
+      "name": "createTask",
+      "description": "创建任务，可同时指定指派人、标签与父任务。",
+      "args": [
+        {
+          "name": "input",
+          "type": "CreateTaskInput!",
+          "desc": "创建参数"
+        }
+      ],
+      "returns": "Task!",
+      "returnsDesc": "新建的任务"
+    },
+    {
+      "kind": "mutation",
+      "domain": "任务",
+      "name": "updateTask",
+      "description": "更新任务标题、详情、优先级、截止日期。",
+      "args": [
+        {
+          "name": "input",
+          "type": "UpdateTaskInput!",
+          "desc": "更新参数"
+        }
+      ],
+      "returns": "Task!"
+    },
+    {
+      "kind": "mutation",
+      "domain": "任务",
+      "name": "setTaskStatus",
+      "description": "流转任务状态（看板拖拽走此接口）。",
+      "args": [
+        {
+          "name": "taskId",
+          "type": "ID!",
+          "desc": "任务 ID"
+        },
+        {
+          "name": "status",
+          "type": "TaskStatus!",
+          "desc": "目标状态"
+        }
+      ],
+      "returns": "Task!"
+    },
+    {
+      "kind": "mutation",
+      "domain": "任务",
+      "name": "assignTask",
+      "description": "替换任务的指派人集合。",
+      "args": [
+        {
+          "name": "taskId",
+          "type": "ID!",
+          "desc": "任务 ID"
+        },
+        {
+          "name": "userIds",
+          "type": "[ID!]!",
+          "desc": "指派人 ID 列表（全量替换）"
+        }
+      ],
+      "returns": "Task!"
+    },
+    {
+      "kind": "mutation",
+      "domain": "协作",
+      "name": "addComment",
+      "description": "在任务下发表评论或回复。",
+      "args": [
+        {
+          "name": "input",
+          "type": "AddCommentInput!",
+          "desc": "评论参数"
+        }
+      ],
+      "returns": "Comment!"
+    },
+    {
+      "kind": "mutation",
+      "domain": "标签",
+      "name": "createTag",
+      "description": "在工作区内新建标签。",
+      "args": [
+        {
+          "name": "workspaceId",
+          "type": "ID!",
+          "desc": "所属工作区"
+        },
+        {
+          "name": "name",
+          "type": "String!",
+          "desc": "标签名"
+        },
+        {
+          "name": "color",
+          "type": "String",
+          "desc": "颜色 #hex"
+        }
+      ],
+      "returns": "Tag!"
+    },
+    {
+      "kind": "mutation",
+      "domain": "标签",
+      "name": "attachTag",
+      "description": "把标签挂到任务上（幂等）。",
+      "args": [
+        {
+          "name": "taskId",
+          "type": "ID!",
+          "desc": "任务 ID"
+        },
+        {
+          "name": "tagId",
+          "type": "ID!",
+          "desc": "标签 ID"
+        }
+      ],
+      "returns": "Task!"
+    }
+  ],
+  "types": {
+    "DateTime": {
+      "kind": "scalar",
+      "description": "ISO-8601 时间戳",
+      "sdl": "scalar DateTime"
+    },
+    "Date": {
+      "kind": "scalar",
+      "description": "ISO-8601 日期",
+      "sdl": "scalar Date"
+    },
+    "Node": {
+      "kind": "interface",
+      "description": "所有带 ID 的对象",
+      "sdl": "interface Node {\n  id: ID!\n}"
+    },
+    "User": {
+      "kind": "object",
+      "description": "平台用户",
+      "sdl": "type User implements Node {\n  id: ID!\n  email: String!\n  name: String!\n  avatarUrl: String\n  timezone: String!\n  memberships: [WorkspaceMember!]!\n  createdAt: DateTime!\n}"
+    },
+    "Workspace": {
+      "kind": "object",
+      "description": "工作区（租户边界）",
+      "sdl": "type Workspace implements Node {\n  id: ID!\n  slug: String!\n  name: String!\n  plan: Plan!\n  owner: User!\n  members(first: Int = 20): [WorkspaceMember!]!\n  projects(includeArchived: Boolean = false): [Project!]!\n  tags: [Tag!]!\n  createdAt: DateTime!\n}"
+    },
+    "WorkspaceMember": {
+      "kind": "object",
+      "description": "工作区成员关系",
+      "sdl": "type WorkspaceMember {\n  user: User!\n  role: Role!\n  joinedAt: DateTime!\n}"
+    },
+    "Plan": {
+      "kind": "enum",
+      "description": "工作区套餐",
+      "sdl": "enum Plan {\n  FREE\n  PRO\n  ENTERPRISE\n}"
+    },
+    "Role": {
+      "kind": "enum",
+      "description": "成员角色",
+      "sdl": "enum Role {\n  OWNER\n  ADMIN\n  MEMBER\n}"
+    },
+    "Project": {
+      "kind": "object",
+      "description": "项目",
+      "sdl": "type Project implements Node {\n  id: ID!\n  key: String!\n  name: String!\n  color: String\n  status: ProjectStatus!\n  lead: User\n  workspace: Workspace!\n  sprints: [Sprint!]!\n  archivedAt: DateTime\n  createdAt: DateTime!\n}"
+    },
+    "ProjectStatus": {
+      "kind": "enum",
+      "description": "项目状态",
+      "sdl": "enum ProjectStatus {\n  ACTIVE\n  ARCHIVED\n}"
+    },
+    "Sprint": {
+      "kind": "object",
+      "description": "迭代 / 冲刺",
+      "sdl": "type Sprint implements Node {\n  id: ID!\n  name: String!\n  goal: String\n  startsOn: Date\n  endsOn: Date\n  status: SprintStatus!\n}"
+    },
+    "SprintStatus": {
+      "kind": "enum",
+      "description": "迭代状态",
+      "sdl": "enum SprintStatus {\n  PLANNED\n  ACTIVE\n  CLOSED\n}"
+    },
+    "Task": {
+      "kind": "object",
+      "description": "任务",
+      "sdl": "type Task implements Node {\n  id: ID!\n  title: String!\n  description: String\n  status: TaskStatus!\n  priority: Priority!\n  position: Float!\n  dueDate: Date\n  project: Project!\n  sprint: Sprint\n  parent: Task\n  subtasks: [Task!]!\n  assignees: [User!]!\n  tags: [Tag!]!\n  comments(first: Int = 20): [Comment!]!\n  attachments: [Attachment!]!\n  createdBy: User!\n  createdAt: DateTime!\n  updatedAt: DateTime!\n}"
+    },
+    "TaskStatus": {
+      "kind": "enum",
+      "description": "任务状态",
+      "sdl": "enum TaskStatus {\n  TODO\n  IN_PROGRESS\n  DONE\n}"
+    },
+    "Priority": {
+      "kind": "enum",
+      "description": "优先级",
+      "sdl": "enum Priority {\n  LOW\n  MEDIUM\n  HIGH\n  URGENT\n}"
+    },
+    "Tag": {
+      "kind": "object",
+      "description": "任务标签",
+      "sdl": "type Tag implements Node {\n  id: ID!\n  name: String!\n  color: String\n}"
+    },
+    "Comment": {
+      "kind": "object",
+      "description": "评论",
+      "sdl": "type Comment implements Node {\n  id: ID!\n  body: String!\n  author: User!\n  parent: Comment\n  createdAt: DateTime!\n  editedAt: DateTime\n}"
+    },
+    "Attachment": {
+      "kind": "object",
+      "description": "附件",
+      "sdl": "type Attachment implements Node {\n  id: ID!\n  fileName: String!\n  mimeType: String\n  sizeBytes: Int!\n  url: String!\n  uploader: User!\n  createdAt: DateTime!\n}"
+    },
+    "TaskPage": {
+      "kind": "object",
+      "description": "任务分页结果",
+      "sdl": "type TaskPage {\n  items: [Task!]!\n  pageInfo: PageInfo!\n  totalCount: Int!\n}"
+    },
+    "PageInfo": {
+      "kind": "object",
+      "description": "游标分页信息",
+      "sdl": "type PageInfo {\n  hasNextPage: Boolean!\n  endCursor: String\n}"
+    },
+    "PageInput": {
+      "kind": "input",
+      "description": "游标分页入参",
+      "sdl": "input PageInput {\n  first: Int = 20\n  after: String\n}"
+    },
+    "TaskFilter": {
+      "kind": "input",
+      "description": "任务过滤条件",
+      "sdl": "input TaskFilter {\n  status: [TaskStatus!]\n  assigneeId: ID\n  tagId: ID\n  dueBefore: Date\n  search: String\n}"
+    },
+    "CreateTaskInput": {
+      "kind": "input",
+      "description": "创建任务入参",
+      "sdl": "input CreateTaskInput {\n  projectId: ID!\n  title: String!\n  description: String\n  sprintId: ID\n  parentId: ID\n  priority: Priority = MEDIUM\n  dueDate: Date\n  assigneeIds: [ID!]\n  tagIds: [ID!]\n}"
+    },
+    "UpdateTaskInput": {
+      "kind": "input",
+      "description": "更新任务入参",
+      "sdl": "input UpdateTaskInput {\n  taskId: ID!\n  title: String\n  description: String\n  priority: Priority\n  dueDate: Date\n}"
+    },
+    "AddCommentInput": {
+      "kind": "input",
+      "description": "发表评论入参",
+      "sdl": "input AddCommentInput {\n  taskId: ID!\n  body: String!\n  parentId: ID\n}"
+    },
+    "SearchResult": {
+      "kind": "union",
+      "description": "搜索结果（多态）",
+      "sdl": "union SearchResult = Task | Project | Comment"
+    }
+  }
+}

@@ -1,0 +1,3547 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskFlow · Schema</title>
+<style>
+  :root {
+    --bg: #f6f6f3; --panel: #ffffff;
+    --line: #e6e4dd; --line2: #efeee9;
+    --ink: #2c2c29; --ink2: #6f6f68; --ink3: #a6a69e;
+    --pk-bg:#f7ecd2; --pk-fg:#8a6d1f;
+    --fk-bg:#dcebf5; --fk-fg:#2f6b9f;
+    --uq-bg:#e3efdd; --uq-fg:#4f7d3a;
+    --nn-bg:#ededeb; --nn-fg:#7b7b74;
+    --r: 8px;
+    --mono: ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans: -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  html, body { min-height: 100%; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; }
+
+  #app { display: flex; min-height: 100vh; }
+
+  /* ── 侧栏 ─────────────────────────────── */
+  #side { width: 264px; flex: none; background: var(--panel); border-right: 1px solid var(--line);
+    display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; z-index: 20; }
+  .side-head { padding: 18px 16px 12px; border-bottom: 1px solid var(--line2); }
+  .brand { font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .brand-dot { width: 9px; height: 9px; border-radius: 3px; background: #3a7d5c; }
+  .brand-sub { margin-left: auto; font-size: 11px; font-weight: 400; color: var(--ink3); }
+  #search { margin-top: 12px; width: 100%; border: 1px solid var(--line); background: #fafaf8;
+    border-radius: 6px; padding: 6px 10px; font: 12px var(--sans); color: var(--ink); outline: none; }
+  #search:focus { border-color: #c9c7bc; background: #fff; }
+  #search::placeholder { color: var(--ink3); }
+
+  #nav { flex: 1; overflow-y: auto; padding: 6px 8px 16px; }
+  .nav-group { margin-top: 14px; }
+  .nav-gt { font-size: 10.5px; letter-spacing: .08em; color: var(--ink3); padding: 0 10px 5px;
+    display: flex; align-items: center; gap: 6px; }
+  .nav-gt .n { margin-left: auto; font-family: var(--mono); font-size: 9.5px; }
+  .nav-item { display: flex; align-items: center; gap: 8px; padding: 5px 10px; border-radius: 6px;
+    color: var(--ink2); font-family: var(--mono); font-size: 12.5px; cursor: pointer; }
+  .nav-item .dot { width: 7px; height: 7px; border-radius: 2px; flex: none; }
+  .nav-item:hover { background: #f3f2ee; color: var(--ink); }
+  .nav-item.on { background: #edece7; color: var(--ink); }
+  .nav-item .cnt { margin-left: auto; font-family: var(--sans); font-size: 10px; color: var(--ink3); }
+  .nav-empty { padding: 20px 12px; color: var(--ink3); font-size: 12px; }
+  .side-foot { border-top: 1px solid var(--line2); padding: 9px 16px; font-size: 10.5px; color: var(--ink3); }
+
+  /* ── 主区 ─────────────────────────────── */
+  #main { flex: 1; min-width: 0; }
+  .wrap { max-width: 840px; margin: 0 auto; padding: 36px 40px 90px; }
+  .d-mark { font-size: 11px; font-weight: 600; letter-spacing: .1em; color: var(--ink3);
+    margin: 40px 0 14px; }
+  .d-mark:first-child { margin-top: 0; }
+  .t-block { scroll-margin-top: 28px; }
+  .t-block + .t-block { margin-top: 56px; padding-top: 48px; border-top: 1px solid var(--line); }
+  .d-mark + .t-block { margin-top: 0; padding-top: 0; border-top: 0; }
+
+  .t-head { margin-bottom: 4px; }
+  .t-name { display: flex; align-items: center; gap: 10px; font: 600 22px/1.3 var(--mono); letter-spacing: .2px; }
+  .t-name .sq { width: 12px; height: 12px; border-radius: 3px; }
+  .t-cmt { margin-top: 6px; color: var(--ink2); font-size: 13px; line-height: 1.65;
+    white-space: pre-wrap; }
+  .t-meta { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+  .meta-chip { font-size: 11px; color: var(--ink2); border: 1px solid var(--line); background: var(--panel);
+    border-radius: 999px; padding: 2px 10px; }
+  .meta-chip b { color: var(--ink); font-weight: 600; }
+
+  h2.sec { margin: 30px 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .1em;
+    color: var(--ink3); display: flex; align-items: center; gap: 8px; }
+  h2.sec .n { font-family: var(--mono); font-weight: 400; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+
+  .c-row { display: flex; align-items: baseline; gap: 10px; padding: 7px 14px; border-top: 1px solid var(--line2); flex-wrap: wrap; }
+  .c-row:first-child { border-top: 0; }
+  .c-row.is-pk { background: #fffdf6; }
+  .c-name { font: 12.5px var(--mono); }
+  .c-type { font: 11px var(--mono); color: var(--ink3); min-width: 116px; }
+  .ts-ref { cursor: help; }
+  .ts-ref:hover { text-decoration: underline; text-underline-offset: 2px; }
+  .c-def { font: 10.5px var(--mono); color: #a0703c; }
+  .c-badges { display: flex; gap: 3px; }
+  .b { font: 600 9px/1 var(--mono); letter-spacing: .2px; padding: 3px 6px; border-radius: 4px; white-space: nowrap; }
+  .b-pk { background: var(--pk-bg); color: var(--pk-fg); }
+  .b-fk { background: var(--fk-bg); color: var(--fk-fg); }
+  .b-uq { background: var(--uq-bg); color: var(--uq-fg); }
+  .b-nn { background: var(--nn-bg); color: var(--nn-fg); }
+  .c-cmt { flex: 1; min-width: 160px; color: var(--ink2); font-size: 12px; }
+
+  .r-row { display: flex; align-items: baseline; gap: 10px; padding: 8px 14px; border-top: 1px solid var(--line2); flex-wrap: wrap; }
+  .r-row:first-child { border-top: 0; }
+  .r-row a.link { cursor: pointer; }
+  .r-row a.link:hover .r-to { color: var(--fk-fg); text-decoration: underline; }
+  .r-kind { font: 600 9px/1 var(--mono); padding: 2.5px 6px; border-radius: 4px; background: var(--fk-bg); color: var(--fk-fg); }
+  .r-kind.in { background: #f0e6f4; color: #7a4d96; }
+  .r-cols { font: 12px var(--mono); }
+  .r-arrow { color: var(--ink3); font-family: var(--mono); font-size: 12px; }
+  .r-to { font: 12px var(--mono); color: var(--ink); }
+  .r-cmt { margin-left: auto; color: var(--ink2); font-size: 12px; }
+
+  .i-row { display: flex; align-items: baseline; gap: 10px; padding: 7px 14px; border-top: 1px solid var(--line2); }
+  .i-row:first-child { border-top: 0; }
+  .i-name { font: 11.5px var(--mono); color: var(--ink2); }
+  .i-cols { font: 11.5px var(--mono); }
+  .i-uq { margin-left: auto; }
+
+  .empty-rel { padding: 10px 14px; color: var(--ink3); font-size: 12px; }
+
+  .kind-tag { font: 600 9.5px/1 var(--sans); letter-spacing: .04em; color: var(--ink3);
+    border: 1px solid var(--line); border-radius: 4px; padding: 3px 6px; }
+  .nav-item.is-assoc { color: var(--ink3); }
+  .nav-item .dia { width: 6px; height: 6px; flex: none; border: 1.4px solid currentColor;
+    transform: rotate(45deg); border-radius: .5px; }
+  .r-kind.nm { background: #f0e6f4; color: #7a4d96; }
+  .r-kind.self { background: var(--nn-bg); color: var(--nn-fg); }
+  .r-block { border-top: 1px solid var(--line2); padding: 2px 0 6px; }
+  .r-block:first-child { border-top: 0; }
+  .r-block .r-row { border-top: 0; }
+  .r-via { padding: 0 14px 6px; font-size: 11.5px; color: var(--ink2); }
+  .r-via a { font-family: var(--mono); cursor: pointer; }
+  .r-via a:hover { color: var(--fk-fg); text-decoration: underline; }
+  .r-via .r-cols { color: var(--ink3); margin-left: 8px; }
+  .r-attrs { margin: 0 12px 8px; border: 1px solid var(--line2); border-radius: 6px; background: #fafaf8; }
+  .r-attrs .c-row { padding: 5px 10px; }
+  .r-id { font: 600 9px/1 var(--mono); color: var(--pk-fg); background: var(--pk-bg);
+    padding: 2px 5px; border-radius: 4px; }
+
+  /* ── 第 3 栏：tabs（是否显示由 JS 按宽度决定，不再卡 1100px）── */
+  #pane { width: 400px; flex: none; background: var(--panel); border-left: 1px solid var(--line);
+    position: sticky; top: 0; height: 100vh; display: none; flex-direction: column; }
+  #pane.show { display: flex; }
+  #paneGrip { position: absolute; left: -3px; top: 0; bottom: 0; width: 7px; cursor: col-resize; z-index: 5; }
+  #paneGrip:hover, #paneGrip.on { background: rgba(90,90,80,.12); }
+  #tabStrip { display: flex; overflow-x: auto; flex: none; border-bottom: 1px solid var(--line); background: #fbfaf8; }
+  #tabStrip::-webkit-scrollbar { height: 0; }
+  .tab { display: flex; align-items: center; gap: 7px; height: 37px; padding: 0 10px 0 12px;
+    border-right: 1px solid var(--line2); font: 12px var(--mono); color: var(--ink2);
+    cursor: pointer; white-space: nowrap; flex: none; }
+  .tab:hover { color: var(--ink); }
+  .tab.on { background: var(--panel); color: var(--ink); box-shadow: inset 0 -2px 0 var(--tac, #888); }
+  .tab .dot { width: 7px; height: 7px; border-radius: 2px; }
+  .tab .x { opacity: 0; font-size: 14px; line-height: 1; color: var(--ink3); padding: 1px 4px; border-radius: 4px; }
+  .tab:hover .x { opacity: 1; }
+  .tab .x:hover { color: var(--ink); background: var(--line2); }
+  #tabBody { flex: 1; overflow-y: auto; padding: 20px 18px 70px; }
+  #tabBody .t-name { font-size: 17px; }
+  #tabBody .t-meta .meta-chip { font-size: 10.5px; }
+  #tabBody h2.sec { margin-top: 24px; }
+
+  /* ── 悬停预览 tooltip ───────────────────── */
+  #tip, #eih-graph-tip { position: fixed; z-index: 60; display: none; max-width: 340px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+    box-shadow: 0 4px 24px rgba(40,40,35,.13); font-size: 12px;
+    max-height: min(72vh, 680px); overflow-y: auto; overscroll-behavior: contain; }
+  #tip.is-ts, #eih-graph-tip.is-ts { max-width: min(640px, calc(100vw - 24px)); padding: 12px 14px; pointer-events: auto; }
+  .tp-ts { font: 11.5px/1.65 var(--mono); white-space: pre-wrap; overflow-wrap: break-word; margin: 2px 0 0; }
+  .tp-head { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+  .tp-head .sq { width: 9px; height: 9px; border-radius: 2.5px; }
+  .tp-head b { font: 600 12.5px var(--mono); }
+  .tp-head .dom { margin-left: auto; color: var(--ink3); font-size: 10.5px; }
+  .tp-row { display: flex; align-items: center; gap: 8px; padding: 1.5px 0; font: 11px var(--mono); }
+  .tp-n { min-width: 92px; }
+  .tp-t { color: var(--ink3); }
+  .tp-row .b { transform: scale(.94); transform-origin: left; }
+  .tp-foot { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--line2); color: var(--ink2); font-size: 11px;
+    white-space: pre-wrap; }
+
+  /* TypeScript 类型声明高亮 */
+  .ts-pre { padding: 11px 14px; font: 12px/1.7 var(--mono); white-space: pre; overflow-x: auto;
+    border-top: 1px solid var(--line2); }
+  .ts-pre:first-child { border-top: 0; }
+  .tk-kw    { color: #7e22ce; }
+  .tk-type  { color: #0e7490; }
+  .tk-field { color: #2563a8; }
+  .tk-str   { color: #b45309; }
+  .tk-num   { color: #b45309; }
+  .tk-com   { color: #a6a69e; font-style: italic; }
+  .tk-pun   { color: #6f6f68; }
+
+  /* ── 全局关系图 ─────────────────────────── */
+  .seg { display: flex; margin-top: 10px; border: 1px solid var(--line); border-radius: 7px;
+    overflow: hidden; background: #fafaf8; }
+  .seg button { flex: 1; border: 0; background: none; font: 11.5px var(--sans); color: var(--ink2);
+    padding: 5px 0; cursor: pointer; }
+  .seg button.on { background: #edece7; color: var(--ink); font-weight: 600; }
+
+  #main.gmode { height: 100vh; overflow: hidden; display: flex; flex-direction: column; }
+  #graphWrap { flex: 1; position: relative; min-height: 0; background: var(--bg);
+    overscroll-behavior: none; }
+  #gSvg { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; cursor: grab;
+    --invk: 1; }
+  #graphWrap.pan #gSvg { cursor: grabbing; }
+
+  #gBar { position: absolute; top: 10px; right: 12px; z-index: 5; display: flex; gap: 8px;
+    align-items: center; background: var(--panel); border: 1px solid var(--line); border-radius: 8px;
+    padding: 5px 10px; font-size: 11.5px; color: var(--ink2); box-shadow: 0 2px 10px rgba(40,40,35,.06); }
+  #gBar label { display: flex; gap: 4px; align-items: center; cursor: pointer; user-select: none; }
+  #gBar input { accent-color: #6f6f68; margin: 0; }
+  #gBar button { border: 1px solid var(--line); background: #fafaf8; border-radius: 5px;
+    font: 11px var(--sans); color: var(--ink2); padding: 2px 8px; cursor: pointer; }
+  #gBar button:hover { color: var(--ink); border-color: #c9c7bc; }
+
+  #gLegend { position: absolute; top: 10px; left: 12px; right: 210px; z-index: 5;
+    display: flex; flex-wrap: wrap; gap: 5px; align-items: flex-start; }
+  .gl { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line);
+    background: var(--panel); border-radius: 999px; padding: 3px 10px 3px 8px;
+    font: 11px var(--sans); color: var(--ink2); cursor: pointer; }
+  .gl i { width: 7px; height: 7px; border-radius: 2px; flex: none; }
+  .gl .n { color: var(--ink3); font-size: 10px; font-family: var(--mono); }
+  .gl.on { border-color: #b8b6aa; background: #f3f2ee; color: var(--ink); }
+
+  #gVp g { transition: opacity .15s; }
+  .gn { cursor: pointer; }
+  .gn .gn-t { font: 600 calc(15px * var(--invk)) var(--mono); fill: var(--ink); text-anchor: middle; }
+  .gn .gn-ts { font-size: calc(13px * var(--invk)); font-weight: 600; fill: var(--ink2); }
+  .gn.sel .gn-r, .gn.sel .gn-d { stroke-width: 2.2; }
+  .gn.dim, .gn.hdim { opacity: .13; }
+
+  .eg .ge { fill: none; stroke: #a5a49a; stroke-width: 1.4; }
+  .eg.eo .ge { stroke: #93927f; stroke-width: 1.6; }
+  .eg.er .ge { stroke: #cfcec2; stroke-width: 1.1; stroke-dasharray: 4 4; }
+  .eg.en .ge { stroke: #7a4d96; stroke-width: 1.5; stroke-opacity: .7; }
+  .eg.es .ge { stroke: #b9b8ac; stroke-width: 1.2; }
+  .eg.ei .ge { stroke-width: 2.6; }
+  .eg.hot .ge { stroke: var(--fk-fg); stroke-width: 2; stroke-dasharray: none; stroke-opacity: 1; }
+  .ge-hit { fill: none; stroke: transparent; stroke-width: 14; }
+  .eg.dim, .eg.hdim { opacity: .15; }
+
+  .ge-lb { font: calc(12px * var(--invk)) var(--mono); fill: var(--ink2); text-anchor: middle;
+    paint-order: stroke; stroke: var(--bg); stroke-width: calc(3.5px * var(--invk)); }
+  .ge-tk { font: calc(10px * var(--invk)) var(--mono); fill: var(--ink3); text-anchor: middle;
+    paint-order: stroke; stroke: var(--bg); stroke-width: calc(3px * var(--invk)); }
+  .ge-ba rect { fill: #f0e6f4; stroke: #d9c6e2; }
+  .ge-ba text { font: 9px var(--mono); fill: #7a4d96; text-anchor: middle; }
+
+  .hull rect { pointer-events: none; }
+  .hull-t { font: 600 calc(12px * var(--invk)) var(--sans); letter-spacing: .1em; }
+  .g-go { cursor: pointer; }
+  .g-go:hover { border-color: #b8b6aa; color: var(--ink); }
+
+  /* ── 暗色（跟随系统）───────────────────── */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #1a1a17; --panel: #242421;
+      --line: #3a3a36; --line2: #2c2c29;
+      --ink: #e3e1d8; --ink2: #a09e95; --ink3: #716f66;
+      --pk-bg:#3f3620; --pk-fg:#d9b964;
+      --fk-bg:#1f3a4d; --fk-fg:#79b4d8;
+      --uq-bg:#2a4225; --uq-fg:#8cc478;
+      --nn-bg:#333330; --nn-fg:#98958b;
+    }
+    .brand-dot { background: #4dab7c; }
+    #search { background: #1f1f1d; }
+    #search:focus { background: #262624; border-color: #4c4b44; }
+    .nav-item:hover { background: #2a2a26; }
+    .nav-item.on { background: #33332e; }
+    .seg { background: #1f1f1d; }
+    .seg button.on { background: #33332e; }
+    .c-row.is-pk { background: #2a271e; }
+    .r-kind.in, .r-kind.nm { background: #332642; color: #c39ade; }
+    .r-attrs { background: #1f1f1d; }
+    .c-def { color: #cf9a60; }
+    #tabStrip { background: #1f1f1d; }
+    #paneGrip:hover, #paneGrip.on { background: rgba(255,255,255,.07); }
+    #tip, #eih-graph-tip, #gBar { box-shadow: 0 4px 24px rgba(0,0,0,.5); }
+    #gBar button { background: #2a2a27; }
+    #gBar button:hover { border-color: #55534a; }
+    #gBar input { accent-color: #8a887e; }
+    .gl.on { background: #33332e; border-color: #55534a; }
+    .g-go:hover { border-color: #55534a; }
+    #scrim { background: rgba(0,0,0,.55); }
+    #side.open { box-shadow: 0 0 40px rgba(0,0,0,.6); }
+    .tk-kw    { color: #bb8de0; }
+    .tk-type  { color: #6db8c9; }
+    .tk-field { color: #7ea6d8; }
+    .tk-str   { color: #cf9a60; }
+    .tk-num   { color: #cf9a60; }
+    .tk-com   { color: #6d6b62; }
+    .tk-pun   { color: #8a887e; }
+    .eg .ge { stroke: #716e64; }
+    .eg.eo .ge { stroke: #8b8779; }
+    .eg.er .ge { stroke: #4a4841; }
+    .eg.en .ge { stroke: #a37ec2; stroke-opacity: .85; }
+    .eg.es .ge { stroke: #5c5a51; }
+    #gArr path { fill: #8b8779; }
+    .ge-ba rect { fill: #352a44; stroke: #584470; }
+    .ge-ba text { fill: #c9a4e0; }
+    #gDots circle { fill: #33322d; }
+    .gn .gn-r { fill-opacity: .13; stroke-opacity: .85; }
+    .gn .gn-d { fill-opacity: .18; stroke-opacity: .9; }
+    .hull rect { fill-opacity: .09; stroke-opacity: .45; }
+  }
+
+  /* ── 左栏抽屉：≤920px 始终收起；更宽但塞不下三栏时（body.side-off / .erd-root.side-off）也收起 ── */
+  #menuBtn { display: none; position: fixed; top: 12px; left: 12px; z-index: 40;
+    width: 34px; height: 34px; border: 1px solid var(--line); border-radius: 8px;
+    background: var(--panel); font-size: 15px; color: var(--ink2); cursor: pointer; }
+  #scrim { display: none; position: fixed; inset: 0; background: rgba(40,40,35,.25); z-index: 15; }
+  @media (max-width: 920px) {
+    #menuBtn { display: block; }
+    #side { position: fixed; left: 0; top: 0; transform: translateX(-100%); transition: transform .2s; box-shadow: 0 0 40px rgba(0,0,0,.12); }
+    #side.open { transform: none; }
+    #side.open ~ #scrim { display: block; }
+    .wrap { padding: 60px 18px 70px; }
+    #gLegend { left: 54px; }
+  }
+  body.side-off #menuBtn , .erd-root.side-off #menuBtn { display: block; }
+  body.side-off #side , .erd-root.side-off #side { position: fixed; left: 0; top: 0; transform: translateX(-100%);
+    transition: transform .2s; box-shadow: 0 0 40px rgba(0,0,0,.12); }
+  body.side-off #side.open , .erd-root.side-off #side.open { transform: none; }
+  body.side-off #side.open ~ #scrim , .erd-root.side-off #side.open ~ #scrim { display: block; }
+  body.side-off .wrap , .erd-root.side-off .wrap { padding-top: 60px; padding-left: 58px; }
+  body.side-off #gLegend , .erd-root.side-off #gLegend { left: 54px; }
+
+  #app { display: flex; min-height: 100vh; }
+  .api-root, .erd-root { width: 100%; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<!--
+  Vue 3 完整生产 CDN，精确版本 3.5.13。
+  本页是单文件交付：样式与组件库已内联，不依赖同目录其它文件，无需 npm / Node / Bun 即可打开。运行时依赖固定 Vue 3.5.13 生产 CDN（https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js，完整构建 vue.global.prod.js，含模板编译器），需要联网，不是离线自包含。用 file:// 打开时，只要浏览器允许加载 HTTPS 脚本即可；CDN 被拦截或完全离线时页面无法启动。
+-->
+<script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   数据区 —— 替换此对象即可复用本页。也可用可选作者工具：
+   node lib/render-erd.js <schema.sql> -o <out.html>
+   边界标记见 SKILL.md「无 Node/Bun 时」；JSON 中的 "<" 必须写成 \u003c。
+   ════════════════════════════════════════════════════════════════════════ */
+/* ===EXPLAIN-IN-HTML-DATA:DATA:START=== */
+const DATA = {"name":"TaskFlow","tables":[{"name":"users","domain":"用户与组织","color":"#5f83b4","comment":"平台用户账号","columns":[{"name":"id","type":"uuid","pk":1,"cmt":"主键"},{"name":"email","type":"varchar(255)","nn":1,"uq":1,"cmt":"登录邮箱"},{"name":"name","type":"varchar(80)","nn":1,"cmt":"显示名称"},{"name":"avatar_url","type":"text","cmt":"头像地址"},{"name":"timezone","type":"varchar(40)","nn":1,"def":"'UTC'","cmt":"时区"},{"name":"created_at","type":"timestamptz","nn":1,"cmt":"注册时间"},{"name":"updated_at","type":"timestamptz","nn":1,"cmt":"资料更新时间"}],"indexes":[],"kind":"entity"},{"name":"workspaces","domain":"用户与组织","color":"#5f83b4","comment":"工作区（租户隔离的顶层边界）","columns":[{"name":"id","type":"uuid","pk":1,"cmt":"主键"},{"name":"slug","type":"varchar(60)","nn":1,"uq":1,"cmt":"URL 短标识"},{"name":"name","type":"varchar(120)","nn":1,"cmt":"工作区名称"},{"name":"plan","type":"varchar(20)","nn":1,"def":"'free'","cmt":"套餐：free / pro / enterprise"},{"name":"owner_id","type":"uuid","nn":1,"fk":"users.id","cmt":"创建者"},{"name":"created_at","type":"timestamptz","nn":1,"cmt":"创建时间"}],"indexes":[{"name":"idx_workspaces_owner","cols":"owner_id","uq":false}],"kind":"entity"},{"name":"workspace_members","domain":"用户与组织","color":"#5f83b4","comment":"工作区成员（复合主键）；role / joined_at 是关系上的属性","columns":[{"name":"workspace_id","type":"uuid","fk":"workspaces.id","cmt":"工作区","pk":1},{"name":"user_id","type":"uuid","fk":"users.id","cmt":"成员","pk":1},{"name":"role","type":"varchar(20)","nn":1,"def":"'member'","cmt":"角色：owner / admin / member"},{"name":"joined_at","type":"timestamptz","nn":1,"cmt":"加入时间"}],"indexes":[{"name":"idx_wm_user","cols":"user_id","uq":false}],"kind":"assoc"},{"name":"projects","domain":"项目","color":"#b08850","comment":"工作区下的项目","columns":[{"name":"id","type":"uuid","pk":1,"cmt":"主键"},{"name":"workspace_id","type":"uuid","nn":1,"fk":"workspaces.id","cmt":"所属工作区"},{"name":"key","type":"varchar(10)","nn":1,"cmt":"项目缩写，如 TF"},{"name":"name","type":"varchar(120)","nn":1,"cmt":"项目名称"},{"name":"color","type":"varchar(9)","cmt":"主题色 #hex"},{"name":"status","type":"varchar(20)","nn":1,"def":"'active'","cmt":"active / archived"},{"name":"lead_id","type":"uuid","fk":"users.id","cmt":"负责人，可空"},{"name":"created_at","type":"timestamptz","nn":1,"cmt":"创建时间"},{"name":"archived_at","type":"timestamptz","cmt":"归档时间"}],"indexes":[{"name":"uq_projects_ws_key","cols":"workspace_id, key","uq":true},{"name":"idx_projects_ws","cols":"workspace_id, status","uq":false}],"kind":"entity"},{"name":"sprints","domain":"项目","color":"#b08850","comment":"迭代 / 冲刺周期","columns":[{"name":"id","type":"uuid","pk":1,"cmt":"主键"},{"name":"project_id","type":"uuid","nn":1,"fk":"projects.id","cmt":"所属项目"},{"name":"name","type":"varchar(120)","nn":1,"cmt":"迭代名"},{"name":"goal","type":"text","cmt":"迭代目标"},{"name":"starts_on","type":"date","cmt":"开始日"},{"name":"ends_on","type":"date","cmt":"结束日"},{"name":"status","type":"varchar(20)","nn":1,"def":"'planned'","cmt":"planned / active / closed"}],"indexes":[{"name":"idx_sprints_project","cols":"project_id, status","uq":false}],"kind":"entity"},{"name":"tasks","domain":"任务","color":"#5f9e83","comment":"任务主表，支持父子层级","columns":[{"name":"id","type":"uuid","pk":1,"cmt":"主键"},{"name":"project_id","type":"uuid","nn":1,"fk":"projects.id","cmt":"所属项目"},{"name":"sprint_id","type":"uuid","fk":"sprints.id","cmt":"所在迭代，可空"},{"name":"parent_id","type":"uuid","fk":"tasks.id","cmt":"父任务（子任务层级）"},{"name":"title","type":"varchar(200)","nn":1,"cmt":"标题"},{"name":"description","type":"text","cmt":"详情，Markdown"},{"name":"status","type":"varchar(20)","nn":1,"def":"'todo'","cmt":"todo / in_progress / done"},{"name":"priority","type":"varchar(10)","nn":1,"def":"'medium'","cmt":"low / medium / high / urgent"},{"name":"position","type":"double precision","nn":1,"cmt":"看板排序值"},{"name":"due_date","type":"date","cmt":"截止日期"},{"name":"created_by","type":"uuid","nn":1,"fk":"users.id","cmt":"创建人"},{"name":"created_at","type":"timestamptz","nn":1,"cmt":"创建时间"},{"name":"updated_at","type":"timestamptz","nn":1,"cmt":"更新时间"}],"indexes":[{"name":"idx_tasks_project","cols":"project_id, status","uq":false},{"name":"idx_tasks_sprint","cols":"sprint_id","uq":false},{"name":"idx_tasks_parent","cols":"parent_id","uq":false},{"name":"idx_tasks_due","cols":"due_date","uq":false}],"kind":"entity"},{"name":"task_assignees","domain":"任务","color":"#5f9e83","comment":"任务指派人（复合主键）","columns":[{"name":"task_id","type":"uuid","fk":"tasks.id","cmt":"任务","pk":1},{"name":"user_id","type":"uuid","fk":"users.id","cmt":"被指派人","pk":1},{"name":"assigned_by","type":"uuid","fk":"users.id","cmt":"操作人"},{"name":"assigned_at","type":"timestamptz","nn":1,"cmt":"指派时间"}],"indexes":[{"name":"idx_ta_user","cols":"user_id","uq":false}],"kind":"assoc"},{"name":"task_tags","domain":"任务","color":"#5f9e83","comment":"任务 ↔ 标签（复合主键）","columns":[{"name":"task_id","type":"uuid","fk":"tasks.id","cmt":"任务","pk":1},{"name":"tag_id","type":"uuid","fk":"tags.id","cmt":"标签","pk":1}],"indexes":[{"name":"idx_tt_tag","cols":"tag_id","uq":false}],"kind":"assoc"},{"name":"comments","domain":"协作","color":"#9b7bb8","comment":"任务评论，支持回复","columns":[{"name":"id","type":"uuid","pk":1,"cmt":"主键"},{"name":"task_id","type":"uuid","nn":1,"fk":"tasks.id","cmt":"所属任务"},{"name":"author_id","type":"uuid","nn":1,"fk":"users.id","cmt":"作者"},{"name":"parent_id","type":"uuid","fk":"comments.id","cmt":"回复目标评论"},{"name":"body","type":"text","nn":1,"cmt":"正文，Markdown"},{"name":"created_at","type":"timestamptz","nn":1,"cmt":"发表时间"},{"name":"edited_at","type":"timestamptz","cmt":"最后编辑时间"}],"indexes":[{"name":"idx_comments_task","cols":"task_id, created_at","uq":false}],"kind":"entity"},{"name":"attachments","domain":"协作","color":"#9b7bb8","comment":"任务附件","columns":[{"name":"id","type":"uuid","pk":1,"cmt":"主键"},{"name":"task_id","type":"uuid","nn":1,"fk":"tasks.id","cmt":"所属任务"},{"name":"uploader_id","type":"uuid","nn":1,"fk":"users.id","cmt":"上传人"},{"name":"file_name","type":"varchar(255)","nn":1,"cmt":"原始文件名"},{"name":"mime_type","type":"varchar(120)","cmt":"MIME 类型"},{"name":"size_bytes","type":"bigint","nn":1,"cmt":"字节数"},{"name":"storage_key","type":"text","nn":1,"cmt":"对象存储路径"},{"name":"created_at","type":"timestamptz","nn":1,"cmt":"上传时间"}],"indexes":[{"name":"idx_attach_task","cols":"task_id","uq":false}],"kind":"entity"},{"name":"activity_logs","domain":"协作","color":"#9b7bb8","comment":"工作区级审计日志（COMMENT ON 写法等价于行尾注释，可混用）","columns":[{"name":"id","type":"bigint","pk":1,"cmt":"主键，自增"},{"name":"workspace_id","type":"uuid","nn":1,"fk":"workspaces.id","cmt":"所属工作区"},{"name":"actor_id","type":"uuid","nn":1,"fk":"users.id","cmt":"操作人"},{"name":"entity_type","type":"varchar(40)","nn":1,"cmt":"对象类型：task / project …"},{"name":"entity_id","type":"uuid","nn":1,"cmt":"对象 ID"},{"name":"action","type":"varchar(40)","nn":1,"cmt":"动作：created / updated …"},{"name":"payload","type":"jsonb","ts":"ActivityPayload","cmt":"变更快照"},{"name":"created_at","type":"timestamptz","nn":1,"cmt":"发生时间"}],"indexes":[{"name":"idx_al_ws_time","cols":"workspace_id, created_at","uq":false},{"name":"idx_al_entity","cols":"entity_type, entity_id","uq":false}],"types":{"ActivityPayload":"{\n  /** 操作类型 */\n  action: \"created\" | \"updated\" | \"deleted\" | \"status_changed\" | \"assigned\";\n  /** 变更前的字段快照 */\n  before?: Record\u003cstring, unknown>;\n  /** 变更后的字段快照 */\n  after?: Record\u003cstring, unknown>;\n}"},"kind":"entity"},{"name":"tags","domain":"标签","color":"#b87b7b","comment":"工作区内的任务标签","columns":[{"name":"id","type":"uuid","pk":1,"cmt":"主键"},{"name":"workspace_id","type":"uuid","nn":1,"fk":"workspaces.id","cmt":"所属工作区"},{"name":"name","type":"varchar(40)","nn":1,"cmt":"标签名"},{"name":"color","type":"varchar(9)","cmt":"颜色 #hex"}],"indexes":[{"name":"uq_tags_ws_name","cols":"workspace_id, name","uq":true}],"kind":"entity"}],"relations":[{"kind":"n:1","a":"workspaces","b":"users","aCols":["owner_id"],"bCols":["id"],"role":"创建者","nn":1,"purpose":"ref"},{"kind":"n:m","via":"workspace_members","purpose":"assoc","attrs":["role","joined_at"],"a":"workspaces","b":"users","aCols":["workspace_id"],"bCols":["user_id"],"aRef":"id","bRef":"id"},{"kind":"n:1","a":"projects","b":"workspaces","aCols":["workspace_id"],"bCols":["id"],"role":"所属工作区","nn":1,"purpose":"owner"},{"kind":"n:1","a":"projects","b":"users","aCols":["lead_id"],"bCols":["id"],"role":"负责人","purpose":"ref"},{"kind":"n:1","a":"sprints","b":"projects","aCols":["project_id"],"bCols":["id"],"role":"所属项目","nn":1,"purpose":"owner"},{"kind":"n:1","a":"tasks","b":"projects","aCols":["project_id"],"bCols":["id"],"role":"所属项目","nn":1,"purpose":"owner"},{"kind":"n:1","a":"tasks","b":"sprints","aCols":["sprint_id"],"bCols":["id"],"role":"所在迭代","purpose":"owner"},{"kind":"self","a":"tasks","b":"tasks","aCols":["parent_id"],"bCols":["id"],"role":"父任务（子任务层级）","purpose":"self"},{"kind":"n:1","a":"tasks","b":"users","aCols":["created_by"],"bCols":["id"],"role":"创建人","nn":1,"purpose":"ref"},{"kind":"n:m","via":"task_assignees","purpose":"assoc","attrs":["assigned_by","assigned_at"],"a":"tasks","b":"users","aCols":["task_id"],"bCols":["user_id"],"aRef":"id","bRef":"id"},{"kind":"n:m","via":"task_tags","purpose":"assoc","a":"tasks","b":"tags","aCols":["task_id"],"bCols":["tag_id"],"aRef":"id","bRef":"id"},{"kind":"n:1","a":"comments","b":"tasks","aCols":["task_id"],"bCols":["id"],"role":"所属任务","nn":1,"purpose":"owner"},{"kind":"n:1","a":"comments","b":"users","aCols":["author_id"],"bCols":["id"],"role":"作者","nn":1,"purpose":"ref"},{"kind":"self","a":"comments","b":"comments","aCols":["parent_id"],"bCols":["id"],"role":"回复目标评论","purpose":"self"},{"kind":"n:1","a":"attachments","b":"tasks","aCols":["task_id"],"bCols":["id"],"role":"所属任务","nn":1,"purpose":"owner"},{"kind":"n:1","a":"attachments","b":"users","aCols":["uploader_id"],"bCols":["id"],"role":"上传人","nn":1,"purpose":"ref"},{"kind":"n:1","a":"activity_logs","b":"workspaces","aCols":["workspace_id"],"bCols":["id"],"role":"所属工作区","nn":1,"purpose":"owner"},{"kind":"n:1","a":"activity_logs","b":"users","aCols":["actor_id"],"bCols":["id"],"role":"操作人","nn":1,"purpose":"ref"},{"kind":"n:1","a":"tags","b":"workspaces","aCols":["workspace_id"],"bCols":["id"],"role":"所属工作区","nn":1,"purpose":"owner"}]};
+/* ===EXPLAIN-IN-HTML-DATA:DATA:END=== */
+
+(function boot() {
+  if (typeof Vue === "undefined") {
+    document.getElementById("app").textContent = "无法加载 Vue 3.5.13 生产 CDN（https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js）。本页需要联网；file:// 下只要浏览器允许请求 HTTPS 脚本即可。最终 HTML 是单文件交付，无需 npm/Node/Bun，但运行依赖 Vue CDN，不是离线自包含。";
+    return;
+  }
+  /* 组件库仅在 Vue 可用之后求值，避免 CDN 失败时顶层引用 Vue 导致本提示无法执行。 */
+var __eih = Object.create(null);
+
+/* ---- lib/model.js ---- */
+__eih["lib/model.js"] = (() => {
+// model.js — 从表的 PK/FK 推出 kind + relations，供解析器与 core/erd-view 使用。
+//
+//   kind:  entity | weak | assoc
+//   relations[]:
+//     n:1 / 1:1 / self  { kind, a, b, aCols, bCols, role?, nn?, purpose, ident? }
+//     n:m               { kind, a, b, aCols, bCols, aRef, bRef, via, purpose, attrs? }
+//     nary              { kind, via, ends: [{ table, col, ref }], purpose, attrs? }
+//
+//   purpose: owner（结构型 * _id 对齐目标表名）| ref（角色/审计）| self | assoc
+//   @kind 已写在表上时不覆盖。
+
+const THIN_NAME = /^(role|status|position|sort|sort_order|ord|priority|seq)$/;
+const THIN_SUFFIX = /(_at|_on|_by|_ts)$/;
+const AUDIT_COL = /_by$|^(actor_id|uploader_id)$/;
+
+function splitCols(cols) {
+  return String(cols || "").split(",").map(s => s.trim()).filter(Boolean);
+}
+
+function fkTarget(c) {
+  if (!c || !c.fk) return null;
+  const i = String(c.fk).indexOf(".");
+  return { table: i < 0 ? c.fk : c.fk.slice(0, i), col: i < 0 ? "id" : c.fk.slice(i + 1) };
+}
+
+function isThinCol(c) {
+  const n = (c.name || "").toLowerCase();
+  return THIN_NAME.test(n) || THIN_SUFFIX.test(n) || n === "actor_id" || n === "uploader_id";
+}
+
+function uniqueIndexEnds(t) {
+  const out = [];
+  for (const idx of t.indexes || []) {
+    if (!idx.uq) continue;
+    const cols = splitCols(idx.cols).map(n => t.columns.find(c => c.name === n));
+    if (cols.length < 2 || cols.some(c => !c || !c.fk)) continue;
+    const tables = new Set(cols.map(c => fkTarget(c).table));
+    if (tables.size >= 2 || (tables.size === 1 && cols.length >= 2)) out.push(cols);
+  }
+  return out;
+}
+
+function pkLooksAssoc(pkFk) {
+  if (pkFk.length < 2) return false;
+  const tables = new Set(pkFk.map(c => fkTarget(c).table));
+  return tables.size >= 2 || (tables.size === 1 && pkFk.length >= 2);
+}
+
+function inferKind(t) {
+  const pk = (t.columns || []).filter(c => c.pk);
+  const pkFk = pk.filter(c => c.fk);
+  const pkNon = pk.filter(c => !c.fk);
+
+  if (pkNon.length === 0 && pkLooksAssoc(pkFk)) return "assoc";
+  if (pkFk.length === 1 && pkNon.length >= 1) return "weak";
+
+  const uq = uniqueIndexEnds(t)[0];
+  if (uq && pkNon.length >= 1) {
+    const endNames = new Set(uq.map(c => c.name));
+    const extras = t.columns.filter(c => !c.pk && !endNames.has(c.name));
+    if (extras.every(isThinCol)) return "assoc";
+  }
+  return "entity";
+}
+
+function assocEndCols(t) {
+  const pkFk = (t.columns || []).filter(c => c.pk && c.fk);
+  if (pkLooksAssoc(pkFk)) return pkFk;
+  const uq = uniqueIndexEnds(t)[0];
+  if (uq) return uq;
+  const fks = (t.columns || []).filter(c => c.fk);
+  return fks.length >= 2 ? fks : [];
+}
+
+function isUniqueCol(t, c) {
+  if (c.uq) return true;
+  return (t.indexes || []).some(i => i.uq && splitCols(i.cols).length === 1 && splitCols(i.cols)[0] === c.name);
+}
+
+function roleOf(c) {
+  if (c && c.cmt) {
+    const s = String(c.cmt).replace(/[，。；;：:].*$/, "").trim();
+    if (s && s.length <= 16) return s;
+  }
+  return (c && c.name || "").replace(/_id$/, "");
+}
+
+function purposeOf(col, from, to) {
+  const n = (col.name || "").toLowerCase();
+  if (from === to) return "self";
+  if (AUDIT_COL.test(n)) return "ref";
+  const stem = n.replace(/_id$/, "");
+  const t = (to || "").toLowerCase();
+  if (!stem || !t) return "ref";
+  if (stem === t || stem + "s" === t || stem + "es" === t) return "owner";
+  if (t.endsWith("s") && t.slice(0, -1) === stem) return "owner";
+  if (t.endsWith("ies") && stem === t.slice(0, -3) + "y") return "owner";
+  return "ref";
+}
+
+function isAuditRel(r) {
+  if (!r || r.kind === "n:m" || r.kind === "nary" || r.kind === "self") return false;
+  const col = (r.aCols && r.aCols[0] || "").toLowerCase();
+  return AUDIT_COL.test(col);
+}
+
+function buildRelations(tables) {
+  const rels = [];
+  for (const t of tables) {
+    if (t.kind === "assoc") {
+      const ends = assocEndCols(t);
+      if (ends.length < 2) continue;
+      const endNames = new Set(ends.map(c => c.name));
+      const attrNames = t.columns
+        .filter(c => !endNames.has(c.name) && !(c.pk && !c.fk))
+        .map(c => c.name);
+      const rec = { kind: "n:m", via: t.name, purpose: "assoc" };
+      if (attrNames.length) rec.attrs = attrNames;
+      if (ends.length === 2) {
+        const A = fkTarget(ends[0]), B = fkTarget(ends[1]);
+        rec.a = A.table; rec.b = B.table;
+        rec.aCols = [ends[0].name]; rec.bCols = [ends[1].name];
+        rec.aRef = A.col; rec.bRef = B.col;
+      } else {
+        rec.kind = "nary";
+        rec.ends = ends.map(c => {
+          const f = fkTarget(c);
+          return { table: f.table, col: c.name, ref: f.col };
+        });
+      }
+      rels.push(rec);
+      continue;
+    }
+    for (const c of t.columns) {
+      if (!c.fk) continue;
+      const f = fkTarget(c);
+      const self = t.name === f.table;
+      rels.push({
+        kind: self ? "self" : isUniqueCol(t, c) ? "1:1" : "n:1",
+        a: t.name,
+        b: f.table,
+        aCols: [c.name],
+        bCols: [f.col],
+        role: roleOf(c),
+        nn: (c.nn || c.pk) ? 1 : undefined,
+        purpose: self ? "self" : purposeOf(c, t.name, f.table),
+        ident: t.kind === "weak" && c.pk ? 1 : undefined,
+      });
+    }
+  }
+  for (const r of rels) {
+    if (r.nn === undefined) delete r.nn;
+    if (!r.ident) delete r.ident;
+  }
+  return rels;
+}
+
+function enrichSchema(data) {
+  const tables = data.tables || [];
+  for (const t of tables) {
+    if (!t.kind) t.kind = inferKind(t);
+  }
+  if (!Array.isArray(data.relations)) data.relations = buildRelations(tables);
+  return data;
+}
+
+  return { splitCols, fkTarget, inferKind, assocEndCols, roleOf, purposeOf, isAuditRel, enrichSchema };
+})();
+
+
+/* ---- core/highlight.js ---- */
+__eih["core/highlight.js"] = (() => {
+// 把 SDL / TS 源切成 token，供模板 v-for 渲染（避免把源码当 HTML 插入）。
+
+const GQL_BUILTIN = new Set(["ID", "String", "Int", "Float", "Boolean"]);
+const GQL_KW = new Set([
+  "type", "interface", "enum", "input", "union", "scalar", "schema", "implements",
+  "extend", "query", "mutation", "subscription", "fragment", "on", "directive",
+  "repeatable", "true", "false", "null",
+]);
+const TS_KW = new Set([
+  "type", "interface", "extends", "keyof", "typeof", "readonly", "in", "as", "const",
+  "string", "number", "boolean", "unknown", "any", "void", "null", "undefined",
+  "never", "true", "false",
+]);
+
+function tokenizeSDL(src, types = {}) {
+  const re = /(#[^\n]*)|("""[\s\S]*?"""|"(?:[^"\\]|\\.)*")|(@[A-Za-z_][A-Za-z0-9_]*)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][A-Za-z0-9_]*)|([\s\S])/g;
+  const out = [];
+  let m;
+  while ((m = re.exec(src || ""))) {
+    const [tok, com, str, dir, num, word] = m;
+    if (com) out.push({ text: tok, cls: "tk-com" });
+    else if (str) out.push({ text: tok, cls: "tk-str" });
+    else if (dir) out.push({ text: tok, cls: "tk-dir" });
+    else if (num) out.push({ text: tok, cls: "tk-num" });
+    else if (word) {
+      if (GQL_KW.has(word)) out.push({ text: tok, cls: "tk-kw" });
+      else if (/^[A-Z]/.test(word)) {
+        if (types[word] && !GQL_BUILTIN.has(word)) {
+          out.push({ text: tok, cls: "tk-type", href: `#type-${word}`, name: word });
+        } else {
+          out.push({ text: tok, cls: "tk-type" });
+        }
+      } else out.push({ text: tok, cls: "tk-field" });
+    } else if (/\s/.test(tok)) out.push({ text: tok, cls: "" });
+    else out.push({ text: tok, cls: "tk-pun" });
+  }
+  return out;
+}
+
+function tokenizeTS(src, typesByName = {}) {
+  const re = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")|(\b\d+(?:\.\d+)?\b)|([A-Za-z_$][A-Za-z0-9_$]*)|([\s\S])/g;
+  const out = [];
+  let m;
+  while ((m = re.exec(src || ""))) {
+    const [tok, com, str, num, word] = m;
+    if (com) out.push({ text: tok, cls: "tk-com" });
+    else if (str) out.push({ text: tok, cls: "tk-str" });
+    else if (num) out.push({ text: tok, cls: "tk-num" });
+    else if (word) {
+      if (TS_KW.has(word)) out.push({ text: tok, cls: "tk-kw" });
+      else if (typesByName[word]) out.push({ text: tok, cls: "tk-type", ts: word });
+      else if (/^[A-Z]/.test(word)) out.push({ text: tok, cls: "tk-type" });
+      else out.push({ text: tok, cls: "tk-field" });
+    } else if (/\s/.test(tok)) out.push({ text: tok, cls: "" });
+    else out.push({ text: tok, cls: "tk-pun" });
+  }
+  return out;
+}
+
+function namesIn(s) {
+  return (String(s || "").match(/[A-Z][A-Za-z0-9_]*/g) || []).filter(w => !GQL_BUILTIN.has(w));
+}
+
+  return { GQL_BUILTIN, GQL_KW, TS_KW, tokenizeSDL, tokenizeTS, namesIn };
+})();
+
+
+/* ---- core/erd-view.js ---- */
+__eih["core/erd-view.js"] = (() => {
+const enrichSchema = __eih["lib/model.js"].enrichSchema;
+const fkTarget = __eih["lib/model.js"].fkTarget;
+const assocEndCols = __eih["lib/model.js"].assocEndCols;
+
+const PALETTE_L = ["#5f83b4","#b08850","#5f9e83","#9b7bb8","#b87b7b","#6aa3a8","#a38b5f","#8b8fb8"];
+const PALETTE_D = ["#7fa5d6","#d2a464","#7dc2a4","#bd9cd8","#d69c9c","#86c6ca","#c4ad78","#aab0dc"];
+
+function isDarkScheme() {
+  return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;
+}
+
+function applyPalette(data, dark) {
+  const P = dark ? PALETTE_D : PALETTE_L;
+  let pi = 0;
+  for (const t of data.tables || []) {
+    if (t._auto || !t.color) {
+      t._auto = true;
+      t.color = P[pi++ % P.length];
+    }
+  }
+  return data;
+}
+
+function buildErdView(raw, dark) {
+  const data = enrichSchema(raw);
+  applyPalette(data, dark);
+  const byName = {};
+  const groups = [];
+  const seenG = {};
+  for (const t of data.tables || []) {
+    byName[t.name] = t;
+    if (!seenG[t.domain]) {
+      seenG[t.domain] = { name: t.domain, color: t.color, tables: [], _auto: t._auto };
+      groups.push(seenG[t.domain]);
+    }
+    seenG[t.domain].tables.push(t);
+  }
+  for (const g of groups) if (g._auto) g.color = g.tables[0].color;
+  const typesByName = {};
+  for (const t of data.tables || []) if (t.types) Object.assign(typesByName, t.types);
+  return { data, byName, groups, typesByName };
+}
+
+function tableMatches(t, filter) {
+  const f = (filter || "").trim().toLowerCase();
+  if (!f) return true;
+  return t.name.toLowerCase().includes(f)
+    || (t.comment || "").toLowerCase().includes(f)
+    || (t.domain || "").toLowerCase().includes(f);
+}
+
+function orderedGroupTables(tables) {
+  return [...tables.filter(t => t.kind !== "assoc"), ...tables.filter(t => t.kind === "assoc")];
+}
+
+function footText(data) {
+  const tables = data.tables || [];
+  const nE = tables.filter(t => t.kind !== "assoc").length;
+  const nA = tables.filter(t => t.kind === "assoc").length;
+  const nR = (data.relations || []).length;
+  return nA ? `${nE} 实体 · ${nA} 关系表 · ${nR} 关系` : `${nE} 表 · ${nR} 关系`;
+}
+
+function colCmt(byName, table, col) {
+  const t = byName[table], c = t && t.columns.find(x => x.name === col);
+  return (c && c.cmt) || "";
+}
+
+function relsTouching(relations, name) {
+  const out = [], inn = [], nm = [], slf = [];
+  for (const r of relations || []) {
+    if (r.kind === "n:m") {
+      if (r.a === name || r.b === name) nm.push(r);
+    } else if (r.kind === "nary") {
+      if ((r.ends || []).some(e => e.table === name)) nm.push(r);
+    } else if (r.kind === "self" && r.a === name) slf.push(r);
+    else if (r.a === name) out.push(r);
+    else if (r.b === name) inn.push(r);
+  }
+  out.sort((a, b) => (a.purpose === "owner" ? 0 : 1) - (b.purpose === "owner" ? 0 : 1));
+  return { out, inn, nm, slf };
+}
+
+function assocParts(data, byName, t) {
+  const r = (data.relations || []).find(x => x.via === t.name);
+  let ends = [];
+  if (r && r.kind === "nary") ends = (r.ends || []).map(e => t.columns.find(c => c.name === e.col));
+  else if (r) ends = [t.columns.find(c => c.name === r.aCols[0]), t.columns.find(c => c.name === r.bCols[0])];
+  ends = ends.filter(Boolean);
+  if (!ends.length) ends = assocEndCols(t);
+  const endNames = new Set(ends.map(c => c.name));
+  const attrs = t.columns.filter(c => !endNames.has(c.name) && !(c.pk && !c.fk));
+  return { r, ends, attrs };
+}
+
+function attrColumns(byName, r) {
+  const via = byName[r.via];
+  if (!via || !r.attrs || !r.attrs.length) return [];
+  return r.attrs.map(n => via.columns.find(c => c.name === n)).filter(Boolean);
+}
+
+
+  return { PALETTE_L, PALETTE_D, isDarkScheme, applyPalette, buildErdView, tableMatches, orderedGroupTables, footText, colCmt, relsTouching, assocParts, attrColumns, fkTarget, assocEndCols, enrichSchema };
+})();
+
+
+/* ---- core/chrome.js ---- */
+__eih["core/chrome.js"] = (() => {
+/** 分栏阈值（与原 design-viz 一致）。纯函数，不读 DOM。 */
+
+const ERD_PANE_MIN_VW = 720;
+const ERD_SIDE_W = 264;
+const ERD_MAIN_MIN = 480;
+const ERD_SIDE_PHONE = 920;
+const ERD_PANE_MIN = 260;
+const ERD_PANE_MAX = 900;
+const API_PANE_MIN = 320;
+const API_MAIN_MIN = 400;
+
+function isWide(width, minVw = ERD_PANE_MIN_VW) {
+  return Number(width) >= minVw;
+}
+
+function shouldHideSide({ width, paneOn, paneW }) {
+  const w = Number(width) || 0;
+  const phone = w <= ERD_SIDE_PHONE;
+  const threeFits = w >= ERD_SIDE_W + (paneOn ? Number(paneW) || 0 : 0) + ERD_MAIN_MIN;
+  return phone || (paneOn && !threeFits);
+}
+
+function clampErdPane(width, { viewport, hideSideFlag }) {
+  const vw = Number(viewport) || 1200;
+  const floor = hideSideFlag ? ERD_MAIN_MIN : ERD_SIDE_W + ERD_MAIN_MIN;
+  const maxPane = Math.min(ERD_PANE_MAX, vw * 0.62, Math.max(ERD_PANE_MIN, vw - floor));
+  return Math.min(Math.max(Number(width) || ERD_PANE_MIN, ERD_PANE_MIN), maxPane);
+}
+
+/** 视口不足以同时放下最小详情栏与最小主栏时，详情改为覆盖层，避免主栏被挤到不可用宽度。 */
+function isApiOverlay(width) {
+  return Number(width) < API_PANE_MIN + API_MAIN_MIN;
+}
+
+function clampApiPane(width, viewport, { overlay } = {}) {
+  const vw = Number(viewport) || 1200;
+  const useOverlay = overlay == null ? isApiOverlay(vw) : !!overlay;
+  if (useOverlay) {
+    const max = Math.max(200, vw - 24);
+    const min = Math.min(API_PANE_MIN, max);
+    return Math.min(Math.max(Number(width) || min, min), max);
+  }
+  const max = Math.max(API_PANE_MIN, vw - API_MAIN_MIN);
+  return Math.min(Math.max(Number(width) || API_PANE_MIN, API_PANE_MIN), max);
+}
+
+function defaultErdPane(viewport) {
+  const vw = Number(viewport) || 1200;
+  return Math.min(Math.max(vw * 0.3, 280), 400);
+}
+
+function defaultApiPane(viewport) {
+  const vw = Number(viewport) || 1200;
+  return Math.min(560, Math.round(vw * 0.45));
+}
+
+  return { ERD_PANE_MIN_VW, ERD_SIDE_W, ERD_MAIN_MIN, ERD_SIDE_PHONE, ERD_PANE_MIN, ERD_PANE_MAX, API_PANE_MIN, API_MAIN_MIN, isWide, shouldHideSide, clampErdPane, isApiOverlay, clampApiPane, defaultErdPane, defaultApiPane };
+})();
+
+
+/* ---- core/storage.js ---- */
+__eih["core/storage.js"] = (() => {
+/** 持久化读写：接受 storage 对象（window.localStorage 或测试用 Map 适配器），不直接碰 DOM。 */
+
+const ERD_PANE_KEY = "erd-pane-w";
+const API_PANE_KEY = "api-pane-w";
+const API_COLLAPSE_KEY = "api-dom-collapsed";
+function erdPosKey(schemaName) {
+  return "erd-pos-v2-" + (schemaName || "schema");
+}
+
+function memoryStorage() {
+  const m = new Map();
+  return {
+    getItem: k => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => { m.set(k, String(v)); },
+    removeItem: k => { m.delete(k); },
+  };
+}
+
+function getStorage() {
+  try {
+    if (typeof localStorage !== "undefined") return localStorage;
+  } catch { /* 隐私模式 */ }
+  return memoryStorage();
+}
+
+function readJSON(storage, key, fallback) {
+  if (!storage) return fallback;
+  try {
+    const raw = storage.getItem(key);
+    if (raw == null || raw === "") return fallback;
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJSON(storage, key, val) {
+  if (!storage) return false;
+  try {
+    storage.setItem(key, JSON.stringify(val));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readNumber(storage, key, fallback) {
+  if (!storage) return fallback;
+  try {
+    const n = parseInt(storage.getItem(key), 10);
+    return Number.isFinite(n) ? n : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeText(storage, key, val) {
+  if (!storage) return false;
+  try {
+    storage.setItem(key, String(val));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function removeKey(storage, key) {
+  if (!storage) return;
+  try { storage.removeItem(key); } catch { /* ignore */ }
+}
+
+function loadPositions(storage, schemaName) {
+  const o = readJSON(storage, erdPosKey(schemaName), {}) || {};
+  const out = {};
+  for (const k of Object.keys(o)) {
+    const p = o[k];
+    if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) out[k] = { x: p.x, y: p.y };
+  }
+  return out;
+}
+
+function savePositions(storage, schemaName, nodes) {
+  const o = {};
+  for (const n of nodes || []) o[n.name] = { x: Math.round(n.x), y: Math.round(n.y) };
+  return writeJSON(storage, erdPosKey(schemaName), o);
+}
+
+function clearPositions(storage, schemaName) {
+  removeKey(storage, erdPosKey(schemaName));
+}
+
+  return { ERD_PANE_KEY, API_PANE_KEY, API_COLLAPSE_KEY, erdPosKey, memoryStorage, getStorage, readJSON, writeJSON, readNumber, writeText, removeKey, loadPositions, savePositions, clearPositions };
+})();
+
+
+/* ---- core/placement.js ---- */
+__eih["core/placement.js"] = (() => {
+/** 悬浮框定位（纯函数）。两页共用，不依赖关系图模块。 */
+
+function placeTooltip(anchorRect, boxSize, { preferRight, pad = 8, vw, vh } = {}) {
+  const tw = boxSize.width || 0, th = boxSize.height || 0;
+  const W = vw || 1200, H = vh || 800;
+  const r = anchorRect || { left: 0, top: 0, right: 0, bottom: 0 };
+  let x, y;
+  if (preferRight && W - r.right - pad >= Math.min(tw, 280)) {
+    x = r.right + 10;
+    y = r.top;
+  } else {
+    x = Math.min(r.left, W - tw - pad);
+    y = r.bottom + 6;
+    if (y + th > H - pad) y = Math.max(pad, r.top - th - 6);
+  }
+  return {
+    left: Math.max(pad, Math.min(x, W - tw - pad)),
+    top: Math.max(pad, Math.min(y, H - th - pad)),
+  };
+}
+
+function placePointerTooltip(x, y, boxSize, { pad = 8, vw, vh } = {}) {
+  const tw = boxSize.width || 0, th = boxSize.height || 0;
+  const W = vw || 1200, H = vh || 800;
+  return {
+    left: Math.max(pad, Math.min(x + 14, W - tw - pad)),
+    top: Math.max(pad, Math.min(y + 14, H - th - pad)),
+  };
+}
+
+  return { placeTooltip, placePointerTooltip };
+})();
+
+
+/* ---- core/graph-model.js ---- */
+__eih["core/graph-model.js"] = (() => {
+/**
+ * 从图数据构造节点与边（纯数据，与界面框架 / DOM 无关）。
+ * n:m 关系表折叠为实体间的边；nary via 保留菱形节点；self / n:1 / 1:1 原样保留。
+ */
+
+function buildGraphModel(data, byName = null) {
+  const tables = (data && data.tables) || [];
+  const relations = (data && data.relations) || [];
+  const map = byName || Object.fromEntries(tables.map(t => [t.name, t]));
+  const folded = new Set();
+  const edges = [];
+
+  for (const r of relations) {
+    if (r.kind === "n:m") {
+      if (!map[r.a] || !map[r.b]) continue;
+      folded.add(r.via);
+      edges.push({
+        id: `nm:${r.via}:${r.a}:${r.b}`,
+        kind: "n:m", a: r.a, b: r.b, via: r.via, attrs: r.attrs || [],
+      });
+    } else if (r.kind === "nary") {
+      if (!map[r.via]) continue;
+      for (const e of r.ends || []) {
+        if (!map[e.table]) continue;
+        edges.push({
+          id: `nary:${r.via}:${e.col}:${e.table}`,
+          kind: "nary", a: r.via, b: e.table, via: r.via, col: e.col, attrs: r.attrs || [],
+        });
+      }
+    } else {
+      if (!map[r.a] || !map[r.b]) continue;
+      edges.push({
+        id: `${r.kind}:${r.a}:${(r.aCols || [])[0] || ""}:${r.b}:${(r.bCols || [])[0] || ""}`,
+        kind: r.kind, a: r.a, b: r.b,
+        aCol: (r.aCols || [])[0], bCol: (r.bCols || [])[0],
+        role: r.role, nn: r.nn, purpose: r.purpose, ident: r.ident,
+      });
+    }
+  }
+
+  const nodes = [];
+  const byN = {};
+  for (const t of tables) {
+    if (t.kind === "assoc" && folded.has(t.name)) continue;
+    const n = {
+      name: t.name,
+      kind: t.kind,
+      domain: t.domain,
+      color: t.color,
+      dia: t.kind === "assoc",
+      x: 0, y: 0, w: 0, h: 0, r: 0,
+      edges: [],
+    };
+    nodes.push(n);
+    byN[n.name] = n;
+  }
+
+  const kept = edges.filter(e => byN[e.a] && byN[e.b]);
+  for (const e of kept) {
+    byN[e.a].edges.push(e);
+    if (e.a !== e.b) byN[e.b].edges.push(e);
+  }
+  return { nodes, edges: kept, byN, folded: [...folded] };
+}
+
+function visibleEdges(edges, showRef) {
+  return (edges || []).filter(e => e.purpose !== "ref" || showRef);
+}
+
+/** 为平行边 / 多重自环分配偏移索引（mutating copies 的 parc / si）。 */
+function assignEdgeOffsets(edges) {
+  const pair = {}, self = {};
+  for (const e of edges) {
+    if (e.a === e.b) (self[e.a] ||= []).push(e);
+    else {
+      const k = e.a < e.b ? e.a + "\0" + e.b : e.b + "\0" + e.a;
+      (pair[k] ||= []).push(e);
+    }
+  }
+  for (const arr of Object.values(pair)) arr.forEach((e, i) => { e.parc = i - (arr.length - 1) / 2; });
+  for (const arr of Object.values(self)) arr.forEach((e, i) => { e.si = i; });
+  return edges;
+}
+
+function neighborNames(node) {
+  const set = new Set([node.name]);
+  for (const e of node.edges || []) { set.add(e.a); set.add(e.b); }
+  return set;
+}
+
+
+/** 点击边后打开的详情表：n:m / nary 打开关系表（via），其余打开起点表 a（若有 via 仍优先 via）。 */
+function edgeDetailName(edge) {
+  if (!edge) return null;
+  if (edge.kind === "n:m" || edge.kind === "nary") return edge.via || edge.a;
+  return edge.via || edge.a;
+}
+
+  return { buildGraphModel, visibleEdges, assignEdgeOffsets, neighborNames, edgeDetailName };
+})();
+
+
+/* ---- core/graph-layout.js ---- */
+__eih["core/graph-layout.js"] = (() => {
+/**
+ * 关系图布局（纯函数/就地更新节点坐标，不碰 DOM）。
+ * 域内按归属边分层紧排，域作为超节点按连接就近拼。算法与原 design-viz 对齐。
+ */
+
+const buildGraphModel = __eih["core/graph-model.js"].buildGraphModel;
+const HULL_P = 14;
+const HULL_TP = 16;
+
+function textW(s, fs) {
+  let w = 0;
+  for (const ch of String(s || "")) {
+    w += /[\u1100-\u11FF\u2E80-\u9FFF\uAC00-\uD7AF\uFF00-\uFFEF]/.test(ch) ? fs : fs * 0.62;
+  }
+  return w;
+}
+
+function sizeNodes(nodes) {
+  for (const n of nodes) {
+    if (n.dia) {
+      n.r = 24;
+      n.w = Math.max(88, textW(n.name, 13) + 16);
+      n.h = n.r * 2 + 22;
+    } else {
+      n.w = Math.max(128, textW(n.name, 15) + 28);
+      n.h = 52;
+    }
+  }
+  return nodes;
+}
+
+function deOverlap(nodes, PAD = 16) {
+  for (let it = 0; it < 90; it++) {
+    let moved = false;
+    for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j];
+      const ox = (a.w + b.w) / 2 + PAD - Math.abs(a.x - b.x);
+      const oy = (a.h + b.h) / 2 + PAD - Math.abs(a.y - b.y);
+      if (ox <= 0 || oy <= 0) continue;
+      moved = true;
+      if (ox < oy) { const d = (a.x < b.x ? -1 : 1) * ox / 2; a.x -= d; b.x += d; }
+      else { const d = (a.y < b.y ? -1 : 1) * oy / 2; a.y -= d; b.y += d; }
+    }
+    if (!moved) break;
+  }
+}
+
+function packDomain(nodes, edges) {
+  const names = new Set(nodes.map(n => n.name));
+  const parent = {};
+  for (const e of edges) {
+    if (e.a === e.b || !names.has(e.a) || !names.has(e.b)) continue;
+    if (e.kind === "n:m" || e.kind === "nary") continue;
+    (parent[e.a] ||= []).push(e.b);
+  }
+  const rank = {};
+  const getRank = (name, stack) => {
+    if (rank[name] != null) return rank[name];
+    if (stack.has(name)) return 0;
+    stack.add(name);
+    const ps = parent[name] || [];
+    rank[name] = ps.length ? 1 + Math.max(...ps.map(p => getRank(p, stack))) : 0;
+    stack.delete(name);
+    return rank[name];
+  };
+  for (const n of nodes) getRank(n.name, new Set());
+
+  const visDeg = n => (n.edges || []).filter(e => e.purpose !== "ref").length;
+  const byRank = [];
+  for (const n of nodes) (byRank[rank[n.name]] ||= []).push(n);
+  const GAP_X = 32, GAP_Y = 34, MAX_W = 480;
+  const rows = [];
+  for (const group of byRank) {
+    if (!group) continue;
+    group.sort((a, b) => visDeg(b) - visDeg(a) || a.name.localeCompare(b.name));
+    let cur = [], w = 0;
+    for (const n of group) {
+      const nw = cur.length ? w + GAP_X + n.w : n.w;
+      if (cur.length && nw > MAX_W) { rows.push(cur); cur = [n]; w = n.w; }
+      else { cur.push(n); w = nw; }
+    }
+    if (cur.length) rows.push(cur);
+  }
+
+  const rowW = rows.map(row => row.reduce((s, n, i) => s + n.w + (i ? GAP_X : 0), 0));
+  const rowH = rows.map(row => Math.max(...row.map(n => n.h)));
+  const contentW = Math.max(0, ...rowW);
+  const local = {};
+  let y = 0;
+  rows.forEach((row, ri) => {
+    let x = (contentW - rowW[ri]) / 2;
+    const h = rowH[ri];
+    for (const n of row) {
+      local[n.name] = { x: x + n.w / 2, y: y + h / 2 };
+      x += n.w + GAP_X;
+    }
+    y += h + GAP_Y;
+  });
+  return { local, w: contentW, h: Math.max(0, y - GAP_Y) };
+}
+
+function rectsHit(a, b, pad) {
+  return a.x < b.x + b.w + pad && a.x + a.w + pad > b.x &&
+         a.y < b.y + b.h + pad && a.y + a.h + pad > b.y;
+}
+
+function deOverlapRects(rects, pad) {
+  for (let it = 0; it < 60; it++) {
+    let moved = false;
+    for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
+      const a = rects[i], b = rects[j];
+      const ox = (a.w + b.w) / 2 + pad - Math.abs((a.x + a.w / 2) - (b.x + b.w / 2));
+      const oy = (a.h + b.h) / 2 + pad - Math.abs((a.y + a.h / 2) - (b.y + b.h / 2));
+      if (ox <= 0 || oy <= 0) continue;
+      moved = true;
+      if (ox < oy) { const d = (a.x < b.x ? -1 : 1) * ox / 2; a.x -= d; b.x += d; }
+      else { const d = (a.y < b.y ? -1 : 1) * oy / 2; a.y -= d; b.y += d; }
+    }
+    if (!moved) break;
+  }
+}
+
+function applySavedPositions(nodes, saved) {
+  const nSaved = nodes.filter(nd => saved[nd.name]).length;
+  if (nSaved < nodes.length * 0.7) return false;
+  for (const nd of nodes) {
+    const s = saved[nd.name];
+    if (s) { nd.x = s.x; nd.y = s.y; }
+  }
+  for (const nd of nodes) {
+    if (saved[nd.name]) continue;
+    const mates = nodes.filter(m => m.domain === nd.domain && saved[m.name]);
+    if (mates.length) {
+      nd.x = mates.reduce((s, m) => s + m.x, 0) / mates.length;
+      nd.y = mates.reduce((s, m) => s + m.y, 0) / mates.length + 70;
+    } else { nd.x = 0; nd.y = 0; }
+  }
+  deOverlap(nodes);
+  return true;
+}
+
+/**
+ * 就地写入 nodes[].x/y。saved 为 { [name]: {x,y} }；groups 为域顺序。
+ */
+function layoutGraph(nodes, edges, groups = [], saved = {}, { hullP = HULL_P, hullTp = HULL_TP } = {}) {
+  if (!nodes.length) return nodes;
+  if (applySavedPositions(nodes, saved || {})) return nodes;
+
+  const byN = Object.fromEntries(nodes.map(n => [n.name, n]));
+  const byDom = {};
+  for (const nd of nodes) (byDom[nd.domain] ||= []).push(nd);
+  const make = (name, list) => {
+    const pack = packDomain(list, edges);
+    return {
+      name, nodes: list, local: pack.local,
+      w: pack.w + 2 * hullP, h: pack.h + 2 * hullP + hullTp, x: 0, y: 0,
+    };
+  };
+  const clusters = [];
+  const seen = new Set();
+  for (const g of groups) {
+    if (!byDom[g.name]) continue;
+    clusters.push(make(g.name, byDom[g.name]));
+    seen.add(g.name);
+  }
+  for (const name in byDom) if (!seen.has(name)) clusters.push(make(name, byDom[name]));
+
+  const pair = (a, b) => a < b ? a + "\0" + b : b + "\0" + a;
+  const link = {};
+  for (const e of edges) {
+    if (e.purpose === "ref" || e.a === e.b) continue;
+    const A = byN[e.a], B = byN[e.b];
+    if (!A || !B) continue;
+    const da = A.domain, db = B.domain;
+    if (da === db) continue;
+    const k = pair(da, db);
+    link[k] = (link[k] || 0) + (e.purpose === "owner" || e.ident ? 2 : e.kind === "n:m" ? 1.5 : 1);
+  }
+  const wLink = (a, b) => link[pair(a, b)] || 0;
+  const cross = name => clusters.reduce((s, c) => s + (c.name === name ? 0 : wLink(name, c.name)), 0);
+  const gIndex = {};
+  groups.forEach((g, i) => { gIndex[g.name] = i; });
+  clusters.sort((a, b) => {
+    const d = cross(b.name) - cross(a.name);
+    return d || (gIndex[a.name] ?? 99) - (gIndex[b.name] ?? 99);
+  });
+
+  const GAP = 52;
+  const ownerBias = (c, p) => {
+    let child = 0, par = 0;
+    for (const e of edges) {
+      if ((e.purpose !== "owner" && !e.ident) || e.a === e.b) continue;
+      const A = byN[e.a], B = byN[e.b];
+      if (!A || !B) continue;
+      const da = A.domain, db = B.domain;
+      if (da === c.name && db === p.name) child++;
+      if (db === c.name && da === p.name) par++;
+    }
+    return child - par;
+  };
+
+  const placed = [];
+  for (const c of clusters) {
+    if (!placed.length) { c.x = 0; c.y = 0; placed.push(c); continue; }
+    const nbrs = placed.filter(p => wLink(c.name, p.name) > 0);
+    const anchors = nbrs.length ? nbrs : placed;
+    let bx = 0, by = 0, tw = 0;
+    for (const p of anchors) {
+      const w = wLink(c.name, p.name) || 1;
+      bx += (p.x + p.w / 2) * w;
+      by += (p.y + p.h / 2) * w;
+      tw += w;
+    }
+    bx /= tw; by /= tw;
+
+    const cands = [];
+    const push = (x, y) => cands.push({ x, y });
+    for (const p of anchors) {
+      push(p.x + p.w + GAP, p.y);
+      push(p.x + p.w + GAP, p.y + p.h / 2 - c.h / 2);
+      push(p.x - c.w - GAP, p.y);
+      push(p.x - c.w - GAP, p.y + p.h / 2 - c.h / 2);
+      push(p.x, p.y + p.h + GAP);
+      push(p.x + p.w / 2 - c.w / 2, p.y + p.h + GAP);
+      push(p.x, p.y - c.h - GAP);
+      push(p.x + p.w / 2 - c.w / 2, p.y - c.h - GAP);
+    }
+    push(bx - c.w / 2, by - c.h / 2);
+
+    const free = (x, y) => {
+      if (!placed.every(p => !rectsHit({ x, y, w: c.w, h: c.h }, p, GAP))) return false;
+      const cy = y + c.h / 2;
+      for (const p of anchors) {
+        const bias = ownerBias(c, p);
+        if (bias > 0 && cy < p.y + p.h / 2 - 10) return false;
+        if (bias < 0 && cy > p.y + p.h / 2 + 10) return false;
+      }
+      return true;
+    };
+    const score = (x, y) => {
+      const cx = x + c.w / 2, cy = y + c.h / 2;
+      let s = 0;
+      for (const p of anchors) {
+        const w = wLink(c.name, p.name) || 1;
+        s += w * Math.hypot(cx - (p.x + p.w / 2), cy - (p.y + p.h / 2));
+        const bias = ownerBias(c, p);
+        if (bias > 0 && cy < p.y + p.h / 2) s += bias * 240;
+        if (bias < 0 && cy > p.y + p.h / 2) s += -bias * 240;
+        if (bias > 0 && cy > p.y + p.h / 2) s -= bias * 50;
+        if (bias < 0 && cy < p.y + p.h / 2) s -= -bias * 50;
+      }
+      let x0 = x, y0 = y, x1 = x + c.w, y1 = y + c.h;
+      for (const p of placed) {
+        x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y);
+        x1 = Math.max(x1, p.x + p.w); y1 = Math.max(y1, p.y + p.h);
+      }
+      return s + (x1 - x0 + y1 - y0) * 0.35;
+    };
+
+    let best = null, bestS = 1e15;
+    for (const q of cands) {
+      if (!free(q.x, q.y)) continue;
+      const sc = score(q.x, q.y);
+      if (sc < bestS) { bestS = sc; best = q; }
+    }
+    if (!best) {
+      for (let ring = 1; ring <= 48 && !best; ring++) {
+        const steps = 12 * ring, dist = ring * (GAP + Math.min(c.w, c.h) * 0.35);
+        for (let i = 0; i < steps; i++) {
+          const ang = (i / steps) * Math.PI * 2 - Math.PI / 2;
+          const x = bx + Math.cos(ang) * dist - c.w / 2;
+          const y = by + Math.sin(ang) * dist - c.h / 2;
+          if (!free(x, y)) continue;
+          const sc = score(x, y);
+          if (sc < bestS) { bestS = sc; best = { x, y }; }
+        }
+      }
+    }
+    if (!best) {
+      let right = 0;
+      for (const p of placed) right = Math.max(right, p.x + p.w);
+      best = { x: right + GAP, y: 0 };
+    }
+    c.x = best.x; c.y = best.y;
+    placed.push(c);
+  }
+  deOverlapRects(clusters, GAP);
+
+  for (const c of clusters) {
+    for (const n of c.nodes) {
+      const loc = c.local[n.name];
+      n.x = c.x + hullP + loc.x;
+      n.y = c.y + hullP + hullTp + loc.y;
+    }
+  }
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const n of nodes) {
+    x0 = Math.min(x0, n.x - n.w / 2); y0 = Math.min(y0, n.y - n.h / 2);
+    x1 = Math.max(x1, n.x + n.w / 2); y1 = Math.max(y1, n.y + n.h / 2);
+  }
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+  for (const n of nodes) { n.x -= cx; n.y -= cy; }
+  return nodes;
+}
+
+
+function layoutFromView(view, saved = {}, opts) {
+  const model = buildGraphModel(view.data, view.byName);
+  sizeNodes(model.nodes);
+  layoutGraph(model.nodes, model.edges, view.groups || [], saved, opts);
+  return model;
+}
+
+  return { HULL_P, HULL_TP, textW, sizeNodes, deOverlap, packDomain, rectsHit, deOverlapRects, layoutGraph, layoutFromView };
+})();
+
+
+/* ---- core/graph-geometry.js ---- */
+__eih["core/graph-geometry.js"] = (() => {
+/**
+ * 由节点坐标派生边路径、标签显隐、hull 矩形、适应/缩放变换。纯计算，不写 DOM。
+ */
+const textW = __eih["core/graph-layout.js"].textW;
+const HULL_P = __eih["core/graph-layout.js"].HULL_P;
+const HULL_TP = __eih["core/graph-layout.js"].HULL_TP;
+
+function invK(k) {
+  return 1 / Math.max(Number(k) || 1, 0.6);
+}
+
+function borderT(nd, ux, uy) {
+  if (nd.dia) {
+    const s = Math.abs(ux) + Math.abs(uy) || 1;
+    return nd.r / s;
+  }
+  const tx = ux ? nd.w / 2 / Math.abs(ux) : 1e9;
+  const ty = uy ? nd.h / 2 / Math.abs(uy) : 1e9;
+  return Math.min(tx, ty);
+}
+
+function edgeGeom(e, byN) {
+  const A = byN[e.a], B = byN[e.b];
+  if (!A || !B) return { d: "M0 0", lx: 0, ly: 0 };
+  if (e.a === e.b) {
+    const w = A.w, x = A.x, y = A.y - A.h / 2, o = (e.si || 0) * 15;
+    return {
+      d: `M ${x - w * 0.26} ${y} C ${x - w * 0.55} ${y - 42 - o}, ${x + w * 0.55} ${y - 42 - o}, ${x + w * 0.26} ${y}`,
+      lx: x, ly: y - 47 - o,
+    };
+  }
+  const dx = B.x - A.x, dy = B.y - A.y, d = Math.max(1, Math.hypot(dx, dy));
+  const ux = dx / d, uy = dy / d, px = -uy, py = ux;
+  const off = (e.parc || 0) * 30;
+  const ta = borderT(A, ux, uy), tb = borderT(B, ux, uy);
+  const x1 = A.x + ux * ta + px * off, y1 = A.y + uy * ta + py * off;
+  const x2 = B.x - ux * tb + px * off, y2 = B.y - uy * tb + py * off;
+  const cx = (x1 + x2) / 2 + px * off * 1.4, cy = (y1 + y2) / 2 + py * off * 1.4;
+  const q = t => ({
+    x: (1 - t) * (1 - t) * x1 + 2 * (1 - t) * t * cx + t * t * x2,
+    y: (1 - t) * (1 - t) * y1 + 2 * (1 - t) * t * cy + t * t * y2,
+  });
+  return {
+    d: `M ${x1} ${y1} Q ${cx} ${cy} ${x2} ${y2}`,
+    lx: (x1 + 2 * cx + x2) / 4, ly: (y1 + 2 * cy + y2) / 4,
+    pa: q(0.13), pb: q(0.87), na: { x: px, y: py },
+  };
+}
+
+function edgeLabel(e) {
+  if (e.kind === "n:m") return e.via;
+  if (e.kind === "self") return e.role || "";
+  if (e.kind === "nary") return "";
+  return e.role || "";
+}
+
+function edgeTicks(e) {
+  if (e.kind === "n:m") return ["N", "N"];
+  if (e.kind === "1:1") return ["1", e.nn ? "1" : "0..1"];
+  if (e.kind === "n:1") return ["N", e.nn ? "1" : "0..1"];
+  return null;
+}
+
+function edgeClass(e) {
+  const cls = e.kind === "n:m" || e.kind === "nary" ? "en"
+    : e.kind === "self" ? "es" : e.purpose === "owner" ? "eo"
+    : e.purpose === "ref" ? "er" : "eo";
+  return "eg " + cls + (e.ident ? " ei" : "");
+}
+
+function edgeHasArrow(e) {
+  return e.kind === "n:1" || e.kind === "1:1" || e.kind === "self";
+}
+
+function edgeScreenLen(e, byN, k) {
+  if (e.a === e.b) return 1e9;
+  const A = byN[e.a], B = byN[e.b];
+  if (!A || !B) return 0;
+  return Math.hypot(B.x - A.x, B.y - A.y) * (k || 1);
+}
+
+function labelHitsNode(ge, nodes, pad = 12) {
+  for (const n of nodes) {
+    if (Math.abs(ge.lx - n.x) < n.w / 2 + pad && Math.abs(ge.ly - n.y) < n.h / 2 + pad) return true;
+  }
+  return false;
+}
+
+function edgeChrome(e, ge, nodes, byN, k) {
+  const inv = invK(k);
+  const label = edgeLabel(e);
+  const sl = edgeScreenLen(e, byN, k);
+  const lw = label ? textW(label, 12) + (e.kind === "n:m" && (e.attrs || []).length ? 26 : 0) : 0;
+  const showL = !!label && sl > lw + 36 && (e.a === e.b || !labelHitsNode(ge, nodes));
+  const showT = sl > 64;
+  const lwU = textW(label || "", 12) * inv;
+  const toff = 12 * inv;
+  const ticks = edgeTicks(e);
+  return {
+    label,
+    showL,
+    showT,
+    labelX: ge.lx,
+    labelY: ge.ly - 6 * inv,
+    badgeTransform: `translate(${ge.lx + lwU / 2 + 6 * inv},${ge.ly - 16 * inv}) scale(${inv})`,
+    showBadge: !!(e.kind === "n:m" && e.attrs && e.attrs.length && showL),
+    attrCount: (e.attrs || []).length,
+    ticks,
+    tickA: ge.pa && ticks ? { x: ge.pa.x + ge.na.x * toff, y: ge.pa.y + ge.na.y * toff, text: ticks[0] } : null,
+    tickB: ge.pb && ticks ? { x: ge.pb.x + ge.na.x * toff, y: ge.pb.y + ge.na.y * toff, text: ticks[1] } : null,
+  };
+}
+
+function deriveEdgeViews(edges, nodes, k, { revealIds } = {}) {
+  const byN = Object.fromEntries(nodes.map(n => [n.name, n]));
+  const reveal = revealIds instanceof Set ? revealIds : new Set(revealIds || []);
+  return edges.map(e => {
+    const geom = edgeGeom(e, byN);
+    const chrome = edgeChrome(e, geom, nodes, byN, k);
+    if (reveal.has(e.id)) {
+      chrome.showL = !!chrome.label || chrome.showL;
+      chrome.showT = true;
+      if (e.kind === "n:m" && e.attrs && e.attrs.length) chrome.showBadge = true;
+    }
+    return { edge: e, geom, chrome, cls: edgeClass(e), hasArrow: edgeHasArrow(e) };
+  });
+}
+
+function computeHulls(nodes, { pad = HULL_P, titlePad = HULL_TP } = {}) {
+  const d = {};
+  for (const n of nodes) (d[n.domain] ||= []).push(n);
+  const hulls = [];
+  for (const name of Object.keys(d)) {
+    const arr = d[name];
+    let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+    for (const n of arr) {
+      x0 = Math.min(x0, n.x - n.w / 2); y0 = Math.min(y0, n.y - n.h / 2);
+      x1 = Math.max(x1, n.x + n.w / 2); y1 = Math.max(y1, n.y + n.h / 2);
+    }
+    hulls.push({
+      name,
+      color: arr[0].color,
+      x: x0 - pad,
+      y: y0 - pad - titlePad,
+      w: x1 - x0 + 2 * pad,
+      h: y1 - y0 + 2 * pad + titlePad,
+      tx: x0 - pad + 14,
+      ty: y0 - pad - titlePad + 16,
+    });
+  }
+  return hulls;
+}
+
+function nodesBounds(nodes, { showHull, pad = HULL_P, titlePad = HULL_TP } = {}) {
+  const P = showHull ? pad : 8, TP = showHull ? titlePad : 0;
+  let x0 = 1e9, y0 = 1e9, x1 = -1e9, y1 = -1e9;
+  for (const n of nodes) {
+    x0 = Math.min(x0, n.x - n.w / 2 - P);
+    y0 = Math.min(y0, n.y - n.h / 2 - P - TP);
+    x1 = Math.max(x1, n.x + n.w / 2 + P);
+    y1 = Math.max(y1, n.y + n.h / 2 + P);
+  }
+  if (!nodes.length) return { x0: 0, y0: 0, x1: 0, y1: 0 };
+  return { x0, y0, x1, y1 };
+}
+
+function fitViewTransform(nodes, viewSize, { showHull } = {}) {
+  const width = viewSize && viewSize.width || 0;
+  const height = viewSize && viewSize.height || 0;
+  if (!nodes.length || !width) return null;
+  const { x0, y0, x1, y1 } = nodesBounds(nodes, { showHull });
+  const bw = x1 - x0 + 32, bh = y1 - y0 + 32;
+  const k0 = Math.min((width - 64) / bw, (height - 64) / bh);
+  const k = Math.min(1.25, Math.max(0.7, k0));
+  return {
+    k,
+    tx: (width - (x0 + x1) * k) / 2,
+    ty: (height - (y0 + y1) * k) / 2,
+  };
+}
+
+function zoomAtTransform(view, mx, my, k2) {
+  const k = Math.min(3, Math.max(0.1, k2));
+  return {
+    k,
+    tx: mx - (mx - view.tx) * k / view.k,
+    ty: my - (my - view.ty) * k / view.k,
+  };
+}
+
+function worldXY(clientX, clientY, rect, view) {
+  return {
+    x: (clientX - rect.left - view.tx) / view.k,
+    y: (clientY - rect.top - view.ty) / view.k,
+  };
+}
+
+function bgRect(view, size) {
+  const w = size && size.width || 0;
+  const h = size && size.height || 0;
+  const k = view.k || 1;
+  return {
+    x: -view.tx / k,
+    y: -view.ty / k,
+    w: w / k,
+    h: h / k,
+  };
+}
+
+function focusTransform(node, viewSize, k) {
+  const width = viewSize && viewSize.width || 0;
+  const height = viewSize && viewSize.height || 0;
+  const kk = Math.max(k || 1, 1);
+  return {
+    k: kk,
+    tx: width / 2 - node.x * kk,
+    ty: height / 2 - node.y * kk,
+  };
+}
+
+const placeTooltip = __eih["core/placement.js"].placeTooltip;
+const placePointerTooltip = __eih["core/placement.js"].placePointerTooltip;
+
+function legendItems(nodes, groups) {
+  const cnt = {};
+  for (const n of nodes) cnt[n.domain] = (cnt[n.domain] || 0) + 1;
+  return (groups || []).filter(g => cnt[g.name]).map(g => ({
+    name: g.name,
+    color: g.color,
+    count: cnt[g.name],
+  }));
+}
+
+  return { invK, borderT, edgeGeom, edgeLabel, edgeTicks, edgeClass, edgeHasArrow, edgeScreenLen, labelHitsNode, edgeChrome, deriveEdgeViews, computeHulls, nodesBounds, fitViewTransform, zoomAtTransform, worldXY, bgRect, focusTransform, placeTooltip, placePointerTooltip, legendItems };
+})();
+
+
+/* ---- runtime/composables/use-listeners.js ---- */
+__eih["runtime/composables/use-listeners.js"] = (() => {
+/** Scoped, idempotent resource ownership; completed work removes its own registration. */
+function useListeners(Vue) {
+  const cleanups = new Set();
+  let disposed = false;
+  function track(off) {
+    let active = true;
+    const release = () => {
+      if (!active) return;
+      active = false;
+      cleanups.delete(release);
+      off();
+    };
+    if (disposed) release();
+    else cleanups.add(release);
+    return release;
+  }
+  function listen(target, type, handler, opts) {
+    if (disposed || !target?.addEventListener) return () => {};
+    let off;
+    const once = !!(opts && typeof opts === "object" && opts.once);
+    const wrapped = once ? function (event) {
+      off();
+      if (typeof handler === "function") handler.call(this, event);
+      else handler.handleEvent(event);
+    } : handler;
+    target.addEventListener(type, wrapped, opts);
+    off = track(() => target.removeEventListener(type, wrapped, opts));
+    return off;
+  }
+  function timeout(fn, ms) {
+    if (disposed) return () => {};
+    const id = setTimeout(() => { off(); fn(); }, ms);
+    const off = track(() => clearTimeout(id));
+    return off;
+  }
+  function raf(fn) {
+    if (disposed) return () => {};
+    if (typeof requestAnimationFrame !== "function") { fn(); return () => {}; }
+    const id = requestAnimationFrame(() => { off(); fn(); });
+    const off = track(() => cancelAnimationFrame(id));
+    return off;
+  }
+  function cleanup() {
+    for (const off of [...cleanups]) {
+      try { off(); } catch { /* continue releasing the remaining resources */ }
+    }
+  }
+  Vue.onBeforeUnmount?.(() => { disposed = true; cleanup(); });
+  return { listen, timeout, raf, track, cleanup, pending: () => cleanups.size };
+}
+
+  return { useListeners };
+})();
+
+
+/* ---- runtime/composables/use-persistent.js ---- */
+__eih["runtime/composables/use-persistent.js"] = (() => {
+const getStorage = __eih["core/storage.js"].getStorage;
+const readJSON = __eih["core/storage.js"].readJSON;
+const writeJSON = __eih["core/storage.js"].writeJSON;
+const readNumber = __eih["core/storage.js"].readNumber;
+const writeText = __eih["core/storage.js"].writeText;
+
+function usePersistent(Vue, { storage } = {}) {
+  const store = storage || getStorage();
+  return {
+    storage: store,
+    readJSON: (key, fb) => readJSON(store, key, fb),
+    writeJSON: (key, val) => writeJSON(store, key, val),
+    readNumber: (key, fb) => readNumber(store, key, fb),
+    writeText: (key, val) => writeText(store, key, val),
+  };
+}
+
+  return { usePersistent };
+})();
+
+
+/* ---- runtime/composables/use-media.js ---- */
+__eih["runtime/composables/use-media.js"] = (() => {
+const useListeners = __eih["runtime/composables/use-listeners.js"].useListeners;
+
+/** 视口宽度与 matchMedia 订阅；卸载时移除监听。测量用 innerWidth / matchMedia，不查询组件树。 */
+function useMedia(Vue, { getWidth } = {}) {
+  const { ref, onMounted } = Vue;
+  const { listen } = useListeners(Vue);
+  const widthOf = () => {
+    if (typeof getWidth === "function") return getWidth();
+    return typeof innerWidth === "number" ? innerWidth : 1200;
+  };
+  const viewport = ref(widthOf());
+  const dark = ref(typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
+
+  onMounted(() => {
+    viewport.value = widthOf();
+    listen(typeof window !== "undefined" ? window : null, "resize", () => { viewport.value = widthOf(); });
+    if (typeof matchMedia === "function") {
+      const mq = matchMedia("(prefers-color-scheme: dark)");
+      dark.value = mq.matches;
+      const on = ev => { dark.value = ev.matches; };
+      if (typeof mq.addEventListener === "function") listen(mq, "change", on);
+      else if (typeof mq.addListener === "function") {
+        mq.addListener(on);
+        listen({ addEventListener() {}, removeEventListener() { try { mq.removeListener(on); } catch {} } }, "noop", () => {});
+      }
+    }
+  });
+
+  return { viewport, dark };
+}
+
+  return { useMedia };
+})();
+
+
+/* ---- runtime/composables/use-search.js ---- */
+__eih["runtime/composables/use-search.js"] = (() => {
+function useSearch(Vue, { initial = "" } = {}) {
+  const { ref } = Vue;
+  const filter = ref(initial);
+  function setFilter(v) { filter.value = v == null ? "" : String(v); }
+  function clear() { filter.value = ""; }
+  return { filter, setFilter, clear };
+}
+
+  return { useSearch };
+})();
+
+
+/* ---- runtime/composables/use-tabs.js ---- */
+__eih["runtime/composables/use-tabs.js"] = (() => {
+function useTabs(Vue, { isOpenable } = {}) {
+  const { ref, computed } = Vue;
+  const tabs = ref([]);
+  const active = ref(null);
+  const hasTabs = computed(() => tabs.value.length > 0);
+
+  function open(id) {
+    if (isOpenable && !isOpenable(id)) return false;
+    if (!id) return false;
+    if (!tabs.value.includes(id)) tabs.value = [...tabs.value, id];
+    active.value = id;
+    return true;
+  }
+  function close(id) {
+    const next = tabs.value.filter(x => x !== id);
+    tabs.value = next;
+    if (active.value === id) active.value = next[next.length - 1] || null;
+  }
+  function select(id) {
+    if (tabs.value.includes(id)) active.value = id;
+  }
+  function closeAll() {
+    tabs.value = [];
+    active.value = null;
+  }
+  return { tabs, active, hasTabs, open, close, closeAll, select };
+}
+
+  return { useTabs };
+})();
+
+
+/* ---- runtime/composables/use-selection.js ---- */
+__eih["runtime/composables/use-selection.js"] = (() => {
+function useSelection(Vue) {
+  const { ref } = Vue;
+  const selected = ref(null);
+  const hot = ref(null);       // 节点名或 null
+  const hotEdge = ref(null);   // 边对象或 null
+  const focusDomain = ref(null);
+  function select(name) { selected.value = name || null; }
+  function setHot(name, edge = null) { hot.value = name || null; hotEdge.value = edge || null; }
+  function clearHot() { hot.value = null; hotEdge.value = null; }
+  function toggleDomain(name) { focusDomain.value = focusDomain.value === name ? null : name; }
+  return { selected, hot, hotEdge, focusDomain, select, setHot, clearHot, toggleDomain };
+}
+
+  return { useSelection };
+})();
+
+
+/* ---- runtime/composables/use-tooltip.js ---- */
+__eih["runtime/composables/use-tooltip.js"] = (() => {
+const placeTooltip = __eih["core/placement.js"].placeTooltip;
+const placePointerTooltip = __eih["core/placement.js"].placePointerTooltip;
+const useListeners = __eih["runtime/composables/use-listeners.js"].useListeners;
+
+/**
+ * 悬浮框。boxEl 必须绑定到真实的 .eih-tip 根元素（由 eih-tooltip 的 measure-ref 契约写入）。
+ * 显示后 nextTick 再测量，避免尚未布局时宽高为 0。
+ */
+function useTooltip(Vue, { delay = 260 } = {}) {
+  const { reactive, computed, ref, nextTick } = Vue;
+  const { timeout, cleanup } = useListeners(Vue);
+  const tip = reactive({ show: false, x: 0, y: 0, payload: null, kind: "" });
+  const boxEl = ref(null);
+  const style = computed(() => ({
+    left: tip.x + "px",
+    top: tip.y + "px",
+    display: tip.show ? "block" : "none",
+  }));
+  let showOff = null;
+
+  function cancel() {
+    if (showOff) showOff();
+    showOff = null;
+  }
+
+  function boxSize() {
+    const box = boxEl.value;
+    if (!box || !box.getBoundingClientRect) return { width: 0, height: 0 };
+    const r = box.getBoundingClientRect();
+    return { width: r.width || 0, height: r.height || 0 };
+  }
+
+  function viewport() {
+    return {
+      vw: typeof innerWidth === "number" ? innerWidth : 1200,
+      vh: typeof innerHeight === "number" ? innerHeight : 800,
+    };
+  }
+
+  function applyPlacement() {
+    const box = boxEl.value;
+    if (!box) return;
+    const size = boxSize();
+    const vp = viewport();
+    let pos;
+    if (!tip._anchor && Number.isFinite(tip._px) && Number.isFinite(tip._py)) {
+      pos = placePointerTooltip(tip._px || 0, tip._py || 0, size, vp);
+    } else {
+      const anchor = tip._anchor;
+      const rect = anchor && anchor.getBoundingClientRect
+        ? anchor.getBoundingClientRect()
+        : { left: 0, top: 0, right: 0, bottom: 0 };
+      pos = placeTooltip(rect, size, Object.assign({ preferRight: tip._preferRight || tip.kind === "type" }, vp));
+    }
+    tip.x = pos.left;
+    tip.y = pos.top;
+  }
+
+  function placeSoon() {
+    const run = () => applyPlacement();
+    if (typeof nextTick === "function") nextTick(run);
+    else run();
+  }
+
+  function show(next, wait = delay) {
+    cancel();
+    showOff = timeout(() => {
+      tip.payload = next.payload;
+      tip.kind = next.kind || "";
+      tip._anchor = next.anchor || null;
+      tip._preferRight = !!next.preferRight;
+      tip._px = next.x;
+      tip._py = next.y;
+      tip.show = true;
+      placeSoon();
+    }, wait);
+  }
+
+  function hide() {
+    cancel();
+    tip.show = false;
+  }
+
+  function hideSoon() {
+    cancel();
+    showOff = timeout(() => { tip.show = false; }, 80);
+  }
+
+  function movePointer(x, y) {
+    tip._px = x;
+    tip._py = y;
+    if (tip.show) applyPlacement();
+  }
+
+    function bindBox(el) { boxEl.value = el || null; }
+
+  return { tip, style, boxEl, bindBox, show, hide, hideSoon, movePointer, applyPlacement, cancel, cleanup };
+
+}
+
+  return { useTooltip };
+})();
+
+
+/* ---- runtime/composables/use-scheme.js ---- */
+__eih["runtime/composables/use-scheme.js"] = (() => {
+const applyPalette = __eih["core/erd-view.js"].applyPalette;
+
+/** 系统暗色变化时只重染自动取色（与原 design-viz 一致）。 */
+function recolorTables(data, dark) {
+  if (!data) return data;
+  applyPalette(data, dark);
+  return data;
+}
+
+  return { recolorTables };
+})();
+
+
+/* ---- runtime/composables/use-drawer.js ---- */
+__eih["runtime/composables/use-drawer.js"] = (() => {
+const shouldHideSide = __eih["core/chrome.js"].shouldHideSide;
+const clampErdPane = __eih["core/chrome.js"].clampErdPane;
+const isWide = __eih["core/chrome.js"].isWide;
+
+/**
+ * 窄屏抽屉状态。sideOff / 钳制后的栏宽由 viewport 与 pane 开关派生，不使用 watch。
+ */
+function useDrawer(Vue, { viewport, paneW, paneOn }) {
+  const { ref, computed } = Vue;
+  const sideOpen = ref(false);
+  const sideOff = computed(() => shouldHideSide({
+    width: viewport.value,
+    paneOn: !!(paneOn && paneOn.value),
+    paneW: paneW.value,
+  }));
+  const wide = computed(() => isWide(viewport.value));
+  const paneWidth = computed(() => clampErdPane(paneW.value, {
+    viewport: viewport.value,
+    hideSideFlag: sideOff.value,
+  }));
+  const menuOpen = computed(() => sideOff.value && sideOpen.value);
+
+  function openMenu() { sideOpen.value = true; }
+  function closeMenu() { sideOpen.value = false; }
+  function toggleMenu() { sideOpen.value = !sideOpen.value; }
+
+  return { sideOpen, sideOff, wide, paneWidth, menuOpen, openMenu, closeMenu, toggleMenu };
+}
+
+  return { useDrawer };
+})();
+
+
+/* ---- runtime/composables/use-pan-zoom.js ---- */
+__eih["runtime/composables/use-pan-zoom.js"] = (() => {
+const fitViewTransform = __eih["core/graph-geometry.js"].fitViewTransform;
+const zoomAtTransform = __eih["core/graph-geometry.js"].zoomAtTransform;
+const worldXY = __eih["core/graph-geometry.js"].worldXY;
+const bgRect = __eih["core/graph-geometry.js"].bgRect;
+const invK = __eih["core/graph-geometry.js"].invK;
+const focusTransform = __eih["core/graph-geometry.js"].focusTransform;
+const useListeners = __eih["runtime/composables/use-listeners.js"].useListeners;
+
+/**
+ * 平移/缩放：只改 view.{k,tx,ty}。模板绑定 transform / --invk / 底图矩形。
+ * size 为响应式，ResizeObserver / resize 后 bg 随视口更新。
+ * 允许：getBoundingClientRect、wheel 非被动监听、Safari gesture*。卸载时移除监听并断开观察器。
+ */
+function usePanZoom(Vue, { getSvgRect, getViewSize, nodes, showHull } = {}) {
+  const { reactive, computed, ref } = Vue;
+  const { listen, track, cleanup } = useListeners(Vue);
+  const view = reactive({ k: 1, tx: 0, ty: 0 });
+  const size = reactive({ width: 0, height: 0, left: 0, top: 0 });
+  const panning = ref(false);
+  const inv = computed(() => invK(view.k).toFixed(4));
+  const cssVars = computed(() => ({ "--invk": inv.value }));
+  const bg = computed(() => bgRect(view, size));
+
+  function rectOf() {
+    return typeof getSvgRect === "function" ? (getSvgRect() || { left: 0, top: 0, width: 0, height: 0 }) : { left: 0, top: 0, width: 0, height: 0 };
+  }
+
+  function measure() {
+    const r = (typeof getViewSize === "function" && getViewSize()) || rectOf();
+    if (!r) return size;
+    size.width = r.width || 0;
+    size.height = r.height || 0;
+    if ("left" in r) size.left = r.left || 0;
+    if ("top" in r) size.top = r.top || 0;
+    return size;
+  }
+
+  function assign(next) {
+    if (!next) return;
+    view.k = next.k; view.tx = next.tx; view.ty = next.ty;
+  }
+  function panBy(dx, dy) { view.tx += dx; view.ty += dy; }
+  function zoomAt(mx, my, k2) { assign(zoomAtTransform(view, mx, my, k2)); }
+  function zoomBy(factor) {
+    const w = size.width || 0, h = size.height || 0;
+    zoomAt(w / 2, h / 2, view.k * factor);
+  }
+  function fit() {
+    measure();
+    assign(fitViewTransform(typeof nodes === "function" ? nodes() : (nodes && nodes.value) || [], size, {
+      showHull: typeof showHull === "function" ? showHull() : !!(showHull && showHull.value),
+    }));
+  }
+  function focusNode(node) {
+    if (!node) return;
+    measure();
+    assign(focusTransform(node, size, view.k));
+  }
+  function toWorld(clientX, clientY) {
+    return worldXY(clientX, clientY, rectOf(), view);
+  }
+
+  function onWheel(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.ctrlKey || e.metaKey) {
+      const r = rectOf();
+      zoomAt(e.clientX - r.left, e.clientY - r.top, view.k * Math.exp(-e.deltaY * 0.013));
+    } else {
+      const u = e.deltaMode === 1 ? 16 : 1;
+      panBy(-e.deltaX * u, -e.deltaY * u);
+    }
+  }
+
+  let pinch0 = 1;
+  let gestureTarget = null;
+  function detachGestures() { cleanup(); gestureTarget = null; }
+  function attachGestures(wrapEl) {
+    if (wrapEl === gestureTarget) return;
+    detachGestures();
+    if (!wrapEl) return;
+    gestureTarget = wrapEl;
+    listen(wrapEl, "wheel", onWheel, { passive: false });
+    listen(wrapEl, "gesturestart", e => { e.preventDefault(); pinch0 = view.k; }, { passive: false });
+    listen(wrapEl, "gesturechange", e => {
+      e.preventDefault();
+      const r = rectOf();
+      zoomAt(e.clientX - r.left, e.clientY - r.top, pinch0 * e.scale);
+    }, { passive: false });
+    listen(wrapEl, "gestureend", e => e.preventDefault(), { passive: false });
+    measure();
+    if (typeof ResizeObserver === "function") {
+      const ro = new ResizeObserver(() => measure());
+      ro.observe(wrapEl);
+      track(() => ro.disconnect());
+    }
+    listen(typeof window !== "undefined" ? window : null, "resize", measure);
+  }
+
+  return {
+    view, size, inv, cssVars, bg, panning,
+    panBy, zoomAt, zoomBy, fit, focusNode, toWorld, onWheel, attachGestures, assign, measure, cleanup: detachGestures,
+  };
+}
+
+  return { usePanZoom };
+})();
+
+
+/* ---- runtime/composables/use-node-drag.js ---- */
+__eih["runtime/composables/use-node-drag.js"] = (() => {
+/** One pointer gesture owns capture, hit identity and the screen-pixel drag threshold. */
+function useNodeDrag(Vue, { view, onDrop, onPanEnd, threshold = 4 } = {}) {
+  const { ref, onBeforeUnmount } = Vue;
+  const drag = ref(null);
+  let disposed = false;
+  function release(d) {
+    if (d && d.captureEl && d.captureEl.releasePointerCapture && d.pointerId != null) {
+      try { d.captureEl.releasePointerCapture(d.pointerId); } catch { /* capture may already be lost */ }
+    }
+  }
+  function matches(ev, d) {
+    return d && (d.pointerId == null || ev?.pointerId == null || ev.pointerId === d.pointerId);
+  }
+  function pointerDown(ev, node, edgeId = null) {
+    if (disposed || drag.value || ev.button || ev.isPrimary === false) return false;
+    const el = ev.currentTarget?.ownerSVGElement || ev.currentTarget || ev.target;
+    const d = {
+      kind: node ? "node" : "pan", node: node || null, edgeId,
+      pointerId: ev.pointerId, captureEl: el, target: ev.target,
+      sx: ev.clientX, sy: ev.clientY, ox: view.tx, oy: view.ty,
+      nx: node?.x || 0, ny: node?.y || 0, k: view.k || 1, moved: false,
+    };
+    drag.value = d;
+    if (el?.setPointerCapture && ev.pointerId != null) {
+      try { el.setPointerCapture(ev.pointerId); } catch { /* retain the same identity without capture */ }
+    }
+    ev.preventDefault?.();
+    return true;
+  }
+  function pointerMove(ev) {
+    const d = drag.value;
+    if (!matches(ev, d) || !Number.isFinite(ev.clientX) || !Number.isFinite(ev.clientY)) return;
+    const dx = ev.clientX - d.sx, dy = ev.clientY - d.sy;
+    if (Math.hypot(dx, dy) > threshold) d.moved = true;
+    if (!d.moved) return;
+    if (d.node) { d.node.x = d.nx + dx / d.k; d.node.y = d.ny + dy / d.k; }
+    else { view.tx = d.ox + dx; view.ty = d.oy + dy; }
+  }
+  function pointerUp(ev, { onTap } = {}) {
+    const d = drag.value;
+    if (!matches(ev, d)) return;
+    pointerMove(ev);
+    drag.value = null; // clear before release can synchronously emit lostpointercapture
+    release(d);
+    if (!d.moved) onTap?.({ node: d.node, edgeId: d.edgeId, target: d.target, event: ev, kind: d.kind });
+    else if (d.node) onDrop?.(d.node);
+    else onPanEnd?.();
+  }
+  function pointerCancel(ev) {
+    const d = drag.value;
+    if (!matches(ev, d)) return;
+    drag.value = null;
+    release(d);
+  }
+  function interrupt() { const d = drag.value; drag.value = null; release(d); }
+  onBeforeUnmount?.(() => { disposed = true; interrupt(); });
+  return { drag, pointerDown, pointerMove, pointerUp, pointerCancel, interrupt };
+}
+
+  return { useNodeDrag };
+})();
+
+
+/* ---- runtime/composables/use-scroll-spy.js ---- */
+__eih["runtime/composables/use-scroll-spy.js"] = (() => {
+const useListeners = __eih["runtime/composables/use-listeners.js"].useListeners;
+
+/**
+ * 列表滚动同步当前表。允许 scrollIntoView 与滚动监听。
+ * tableEls: { [name]: Element } 由模板 ref 回调填充，不用全局 getElementById 查找图节点。
+ * 锚点 id 仍可写在区块上供 hash 使用。
+ */
+function useScrollSpy(Vue, { current }) {
+  const { listen, timeout } = useListeners(Vue);
+  const tableEls = {};
+  let lock = false, gen = 0;
+  let releaseLock = () => {};
+
+  function setEl(name, el) {
+    if (el) tableEls[name] = el;
+    else delete tableEls[name];
+  }
+
+  function lockSpy() {
+    releaseLock();
+    const g = ++gen;
+    lock = true;
+    let offEnd = () => {}, offTimer = () => {};
+    const done = () => {
+      offEnd(); offTimer();
+      if (g === gen) lock = false;
+    };
+    releaseLock = done;
+    offEnd = listen(typeof window !== "undefined" ? window : null, "scrollend", done, { once: true });
+    offTimer = timeout(done, 900);
+  }
+
+  function scrollToName(name, instant) {
+    const el = tableEls[name];
+    if (!el || typeof el.scrollIntoView !== "function") return false;
+    lockSpy();
+    current.value = name;
+    el.scrollIntoView({ behavior: instant ? "auto" : "smooth", block: "start" });
+    return true;
+  }
+
+  function onScroll(namesInOrder, getTop) {
+    if (lock) return;
+    const y = typeof getTop === "function" ? getTop() : (typeof scrollY === "number" ? scrollY : 0);
+    let hit = namesInOrder[0];
+    for (const n of namesInOrder) {
+      const el = tableEls[n];
+      if (!el || typeof el.getBoundingClientRect !== "function") continue;
+      if (el.getBoundingClientRect().top <= 120) hit = n;
+    }
+    if (hit) current.value = hit;
+    return y;
+  }
+
+  return { setEl, scrollToName, onScroll, lockSpy };
+}
+
+  return { useScrollSpy };
+})();
+
+
+/* ---- runtime/composables/use-hash-nav.js ---- */
+__eih["runtime/composables/use-hash-nav.js"] = (() => {
+const useListeners = __eih["runtime/composables/use-listeners.js"].useListeners;
+
+/** hashchange 导航。允许读 location.hash；不查询组件内部 DOM。 */
+function useHashNav(Vue, { onHash }) {
+  const { onMounted } = Vue;
+  const { listen } = useListeners(Vue);
+
+  function read() {
+    if (typeof location === "undefined") return "";
+    return decodeURIComponent((location.hash || "").replace(/^#/, ""));
+  }
+  function setHash(name) {
+    if (typeof location === "undefined") return;
+    const next = name ? "#" + name : "";
+    if (location.hash !== next) {
+      try { history.replaceState(null, "", next || location.pathname + location.search); }
+      catch { location.hash = next; }
+    }
+  }
+
+  onMounted(() => {
+    listen(typeof window !== "undefined" ? window : null, "hashchange", () => onHash && onHash(read()));
+    if (onHash) onHash(read());
+  });
+
+  return { read, setHash };
+}
+
+  return { useHashNav };
+})();
+
+
+/* ---- runtime/components/ts-highlight.js ---- */
+__eih["runtime/components/ts-highlight.js"] = (() => {
+const tokenizeTS = __eih["core/highlight.js"].tokenizeTS;
+
+const tag = "ts-highlight";
+const name = "TsHighlight";
+
+function define(Vue) {
+  const { computed } = Vue;
+  return {
+    name,
+    props: { source: { type: String, default: "" }, types: { type: Object, default: () => ({}) } },
+    emits: ["ts-tip", "ts-hide"],
+    setup(props) {
+      const tokens = computed(() => tokenizeTS(props.source, props.types));
+      return { tokens };
+    },
+    template: `<span><template v-for="(tok, i) in tokens" :key="i"><span v-if="tok.ts" class="tk-type ts-ref" @mouseenter="$emit('ts-tip', tok.ts, $event.currentTarget)" @mouseleave="$emit('ts-hide')">{{ tok.text }}</span><span v-else-if="tok.cls" :class="tok.cls">{{ tok.text }}</span><template v-else>{{ tok.text }}</template></template></span>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-col-row.js ---- */
+__eih["runtime/components/erd-col-row.js"] = (() => {
+const tag = "erd-col-row";
+const name = "ErdColRow";
+
+function define(Vue) {
+  const { computed } = Vue;
+  return {
+    name,
+    props: { col: { type: Object, required: true }, types: { type: Object, default: () => ({}) } },
+    emits: ["ts-tip", "ts-hide"],
+    setup(props) {
+      const tsNamed = computed(() => props.col.ts && (props.types[props.col.ts] || true));
+      return { tsNamed };
+    },
+    template: `<div class="c-row" :class="{ 'is-pk': col.pk }">
+      <span class="c-name">{{ col.name }}</span>
+      <span class="c-type">{{ col.type }}<template v-if="col.ts">&lt;<ts-highlight :source="String(col.ts)" :types="types" @ts-tip="(n, el) => $emit('ts-tip', n, el)" @ts-hide="$emit('ts-hide')"></ts-highlight>&gt;</template></span>
+      <span v-if="col.def !== undefined" class="c-def">= {{ col.def }}</span>
+      <span class="c-badges">
+        <span v-if="col.pk" class="b b-pk">PRIMARY KEY</span>
+        <span v-if="col.fk" class="b b-fk">FOREIGN KEY</span>
+        <span v-if="col.uq" class="b b-uq">UNIQUE</span>
+        <span v-if="col.nn && !col.pk" class="b b-nn">NOT NULL</span>
+      </span>
+      <span class="c-cmt">{{ col.cmt || "" }}</span>
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-indexes.js ---- */
+__eih["runtime/components/erd-indexes.js"] = (() => {
+const tag = "erd-indexes";
+const name = "ErdIndexes";
+
+function define(Vue) {
+  const { computed } = Vue;
+  return {
+    name,
+    props: { table: { type: Object, required: true } },
+    setup(props) {
+      const idx = computed(() => props.table.indexes || []);
+      return { idx };
+    },
+    template: `<template v-if="idx.length">
+      <h2 class="sec">索引 <span class="n">INDEXES · {{ idx.length }}</span></h2>
+      <div class="card">
+        <div v-for="i in idx" :key="i.name" class="i-row">
+          <span class="i-name">{{ i.name }}</span>
+          <span class="i-cols">({{ i.cols }})</span>
+          <span v-if="i.uq" class="i-uq"><span class="b b-uq">UNIQUE</span></span>
+        </div>
+      </div>
+    </template>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-types-block.js ---- */
+__eih["runtime/components/erd-types-block.js"] = (() => {
+const tag = "erd-types-block";
+const name = "ErdTypesBlock";
+
+function define(Vue) {
+  const { computed } = Vue;
+  return {
+    name,
+    props: { table: { type: Object, required: true }, types: { type: Object, default: () => ({}) } },
+    emits: ["ts-tip", "ts-hide"],
+    setup(props) {
+      const entries = computed(() => Object.entries(props.table.types || {}));
+      function glue(v) { return String(v).includes("\n") ? "\n" : " "; }
+      return { entries, glue };
+    },
+    template: `<template v-if="entries.length">
+      <h2 class="sec">类型 <span class="n">TS TYPES · {{ entries.length }}</span></h2>
+      <div class="card">
+        <pre v-for="([k, v]) in entries" :key="k" class="ts-pre"><span class="tk-kw">type</span> <span class="tk-type">{{ k }}</span> <span class="tk-pun">=</span>{{ glue(v) }}<ts-highlight :source="v" :types="types" @ts-tip="(n, el) => $emit('ts-tip', n, el)" @ts-hide="$emit('ts-hide')"></ts-highlight></pre>
+      </div>
+    </template>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-table-card.js ---- */
+__eih["runtime/components/erd-table-card.js"] = (() => {
+const colCmt = __eih["core/erd-view.js"].colCmt;
+const relsTouching = __eih["core/erd-view.js"].relsTouching;
+const assocParts = __eih["core/erd-view.js"].assocParts;
+const attrColumns = __eih["core/erd-view.js"].attrColumns;
+const fkTarget = __eih["core/erd-view.js"].fkTarget;
+
+const tag = "erd-table-card";
+const name = "ErdTableCard";
+
+function define(Vue) {
+  const { computed } = Vue;
+  return {
+    name: "ErdTableCard",
+    props: {
+      table: { type: Object, required: true },
+      schema: { type: Object, required: true },
+      byName: { type: Object, required: true },
+      types: { type: Object, default: () => ({}) },
+    },
+    emits: ["open-tab", "go-graph", "ts-tip", "ts-hide", "tip", "tip-hide"],
+    setup(props, { emit }) {
+      const isAssoc = computed(() => props.table.kind === "assoc");
+      const kindTag = computed(() => props.table.kind === "assoc" ? "关系表" : props.table.kind === "weak" ? "弱实体" : "");
+      const parts = computed(() => isAssoc.value ? assocParts(props.schema, props.byName, props.table) : null);
+      const rels = computed(() => relsTouching(props.schema.relations, props.table.name));
+      const nRel = computed(() => {
+        const r = rels.value;
+        return r.out.length + r.inn.length + r.nm.length + r.slf.length;
+      });
+      function endFk(c) { return fkTarget(c); }
+      function nmRole(r) {
+        const flip = r.a !== props.table.name;
+        const other = flip ? r.a : r.b;
+        const viaCol = flip ? r.aCols[0] : r.bCols[0];
+        const self = r.a === r.b;
+        return self ? "自关联" : (colCmt(props.byName, r.via, viaCol) || other);
+      }
+      function nmOther(r) { return r.a !== props.table.name ? r.a : r.b; }
+      function nmCols(r) {
+        const flip = r.a !== props.table.name;
+        const viaCol = flip ? r.aCols[0] : r.bCols[0];
+        const myCol = flip ? r.bCols[0] : r.aCols[0];
+        return `${myCol} ↔ ${viaCol}`;
+      }
+      function naryOthers(r) { return (r.ends || []).filter(e => e.table !== props.table.name); }
+      function naryCols(r) { return (r.ends || []).map(e => e.col).join(" · "); }
+      function attrs(r) { return attrColumns(props.byName, r); }
+      function inCmt(r) {
+        const src = props.byName[r.a];
+        return colCmt(props.byName, r.a, r.aCols[0]) || (src && src.comment) || "";
+      }
+      function onOver(ev) {
+        const a = ev.target && ev.target.closest && ev.target.closest("[data-tip-table]");
+        if (!a) return;
+        const n = a.getAttribute("data-tip-table");
+        if (n) emit("tip", n, a);
+      }
+      return {
+        isAssoc, kindTag, parts, rels, nRel, endFk, nmRole, nmOther, nmCols,
+        naryOthers, naryCols, attrs, inCmt, onOver,
+      };
+    },
+    template: `<div class="t-card" @mouseover="onOver" @mouseleave="$emit('tip-hide')">
+      <div class="t-head">
+        <div class="t-name" :data-tip-table="table.name"><span class="sq" :style="{ background: table.color }"></span>{{ table.name }}<span v-if="kindTag" class="kind-tag">{{ kindTag }}</span></div>
+        <div class="t-cmt">{{ table.comment || "" }}</div>
+        <div class="t-meta">
+          <span class="meta-chip">{{ table.domain }}</span>
+          <span v-if="isAssoc" class="meta-chip"><b>{{ parts.ends.length }}</b> 端点</span>
+          <span v-if="isAssoc && parts.attrs.length" class="meta-chip"><b>{{ parts.attrs.length }}</b> 关联属性</span>
+          <span v-if="!isAssoc" class="meta-chip"><b>{{ table.columns.length }}</b> 列</span>
+          <span v-if="!isAssoc" class="meta-chip"><b>{{ nRel }}</b> 关系</span>
+          <span v-if="table.indexes && table.indexes.length" class="meta-chip"><b>{{ table.indexes.length }}</b> 索引</span>
+          <span class="meta-chip g-go" @click="$emit('go-graph', table.name)">⌖ 关系图</span>
+        </div>
+      </div>
+
+      <template v-if="isAssoc">
+        <template v-if="parts.r && parts.r.kind !== 'nary'">
+          <h2 class="sec">关系 <span class="n">RELATES</span></h2>
+          <div class="card">
+            <div class="r-row">
+              <span class="r-kind nm">N:M</span>
+              <a :data-tip-table="parts.r.a" class="link" :href="'#' + parts.r.a" @click.prevent="$emit('open-tab', parts.r.a)"><span class="r-to">{{ parts.r.a }}</span></a>
+              <span class="r-arrow">↔</span>
+              <a :data-tip-table="parts.r.b" class="link" :href="'#' + parts.r.b" @click.prevent="$emit('open-tab', parts.r.b)"><span class="r-to">{{ parts.r.b }}</span></a>
+            </div>
+          </div>
+        </template>
+        <template v-else-if="parts.r">
+          <h2 class="sec">关系 <span class="n">RELATES</span></h2>
+          <div class="card">
+            <div class="r-row">
+              <span class="r-kind nm">N-ARY</span>
+              <template v-for="(e, i) in parts.r.ends" :key="e.table">
+                <span v-if="i" class="r-arrow"> · </span>
+                <a :data-tip-table="e.table" class="link" :href="'#' + e.table" @click.prevent="$emit('open-tab', e.table)"><span class="r-to">{{ e.table }}</span></a>
+              </template>
+            </div>
+          </div>
+        </template>
+        <h2 class="sec">端点 <span class="n">ENDS · {{ parts.ends.length }}</span></h2>
+        <div class="card">
+          <div v-if="!parts.ends.length" class="empty-rel">未识别端点</div>
+          <div v-for="c in parts.ends" :key="c.name" class="r-row">
+            <a :data-tip-table="endFk(c).table" class="link" :href="'#' + endFk(c).table" @click.prevent="$emit('open-tab', endFk(c).table)">
+              <span class="r-kind nm">端点</span>
+              <span class="r-cols">{{ c.name }}</span>
+              <span class="r-arrow">──▶</span>
+              <span class="r-to">{{ endFk(c).table }}.{{ endFk(c).col }}</span>
+            </a>
+            <span class="r-cmt">{{ c.cmt || "" }}</span>
+          </div>
+        </div>
+        <template v-if="parts.attrs.length">
+          <h2 class="sec">关联属性 <span class="n">ATTRIBUTES · {{ parts.attrs.length }}</span></h2>
+          <div class="card">
+            <erd-col-row v-for="c in parts.attrs" :key="c.name" :col="c" :types="types" @ts-tip="(n, el) => $emit('ts-tip', n, el)" @ts-hide="$emit('ts-hide')"></erd-col-row>
+          </div>
+        </template>
+      </template>
+
+      <template v-else>
+        <h2 class="sec">列 <span class="n">COLUMNS · {{ table.columns.length }}</span></h2>
+        <div class="card">
+          <erd-col-row v-for="c in table.columns" :key="c.name" :col="c" :types="types" @ts-tip="(n, el) => $emit('ts-tip', n, el)" @ts-hide="$emit('ts-hide')"></erd-col-row>
+        </div>
+        <h2 class="sec">关系 <span class="n">RELATIONS · {{ nRel }}</span></h2>
+        <div class="card">
+          <div v-if="!nRel" class="empty-rel">暂无关系</div>
+          <div v-for="r in rels.out" :key="'o'+r.a+r.aCols[0]+r.b" class="r-row">
+            <a :data-tip-table="r.b" class="link" :href="'#' + r.b" @click.prevent="$emit('open-tab', r.b)">
+              <span class="r-kind" :class="r.kind === 'self' ? 'self' : ''">{{ r.kind === 'self' ? 'SELF' : r.kind === '1:1' ? '1:1' : 'N:1' }}</span>
+              <span class="r-cols">{{ r.aCols[0] }}</span>
+              <span class="r-arrow">──▶</span>
+              <span class="r-to">{{ r.b }}.{{ r.bCols[0] }}</span>
+            </a>
+            <span v-if="r.ident" class="r-id">标识</span>
+            <span class="r-cmt">{{ r.role || "" }}</span>
+          </div>
+          <div v-for="r in rels.slf" :key="'s'+r.aCols[0]" class="r-row">
+            <a :data-tip-table="r.b" class="link" :href="'#' + r.b" @click.prevent="$emit('open-tab', r.b)">
+              <span class="r-kind self">SELF</span>
+              <span class="r-cols">{{ r.aCols[0] }}</span>
+              <span class="r-arrow">──▶</span>
+              <span class="r-to">{{ r.b }}.{{ r.bCols[0] }}</span>
+            </a>
+            <span v-if="r.ident" class="r-id">标识</span>
+            <span class="r-cmt">{{ r.role || "" }}</span>
+          </div>
+          <div v-for="r in rels.nm" :key="'n'+(r.via||'')+(r.kind||'')" class="r-block">
+            <template v-if="r.kind === 'nary'">
+              <div class="r-row">
+                <span class="r-kind nm">N-ARY</span>
+                <template v-for="(e, i) in naryOthers(r)" :key="e.table">
+                  <span v-if="i" class="r-arrow"> · </span>
+                  <a :data-tip-table="e.table" class="link" :href="'#' + e.table" @click.prevent="$emit('open-tab', e.table)"><span class="r-to">{{ e.table }}</span></a>
+                </template>
+              </div>
+              <div class="r-via">通过 <a :data-tip-table="r.via" :href="'#' + r.via" @click.prevent="$emit('open-tab', r.via)">{{ r.via }}</a><span class="r-cols">{{ naryCols(r) }}</span></div>
+            </template>
+            <template v-else>
+              <div class="r-row">
+                <a :data-tip-table="nmOther(r)" class="link" :href="'#' + nmOther(r)" @click.prevent="$emit('open-tab', nmOther(r))">
+                  <span class="r-kind nm">N:M</span>
+                  <span class="r-to">{{ nmOther(r) }}</span>
+                </a>
+                <span class="r-cmt">{{ nmRole(r) }}</span>
+              </div>
+              <div class="r-via">通过 <a :data-tip-table="r.via" :href="'#' + r.via" @click.prevent="$emit('open-tab', r.via)">{{ r.via }}</a>
+                <span class="r-cols">{{ nmCols(r) }}</span></div>
+            </template>
+            <div v-if="attrs(r).length" class="r-attrs">
+              <erd-col-row v-for="c in attrs(r)" :key="c.name" :col="c" :types="types" @ts-tip="(n, el) => $emit('ts-tip', n, el)" @ts-hide="$emit('ts-hide')"></erd-col-row>
+            </div>
+          </div>
+          <div v-for="r in rels.inn" :key="'i'+r.a+r.aCols[0]" class="r-row">
+            <a :data-tip-table="r.a" class="link" :href="'#' + r.a" @click.prevent="$emit('open-tab', r.a)">
+              <span class="r-kind in">1:N</span>
+              <span class="r-to">{{ r.a }}.{{ r.aCols[0] }}</span>
+              <span class="r-arrow">──▶</span>
+              <span class="r-cols">{{ r.b }}.{{ r.bCols[0] }}</span>
+            </a>
+            <span v-if="r.ident" class="r-id">标识</span>
+            <span class="r-cmt">{{ inCmt(r) }}</span>
+          </div>
+        </div>
+      </template>
+      <erd-indexes :table="table"></erd-indexes>
+      <erd-types-block :table="table" :types="types" @ts-tip="(n, el) => $emit('ts-tip', n, el)" @ts-hide="$emit('ts-hide')"></erd-types-block>
+    </div>`,
+  };;
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-nav.js ---- */
+__eih["runtime/components/erd-nav.js"] = (() => {
+const tag = "erd-nav";
+const name = "ErdNav";
+
+function define() {
+  return {
+    name,
+    props: {
+      groups: { type: Array, default: () => [] },
+      empty: { type: Boolean, default: false },
+      current: { type: String, default: "" },
+      foot: { type: String, default: "" },
+    },
+    emits: ["select", "tip", "tip-hide"],
+    setup() { return {}; },
+    template: `<nav id="nav" class="erd-nav">
+      <div v-if="empty" class="nav-empty">没有匹配的表</div>
+      <template v-for="g in groups" :key="g.name">
+        <div class="nav-g">
+          <div class="nav-gh"><span class="sq" :style="{ background: g.color }"></span>{{ g.name }}</div>
+          <a v-for="t in g.tables" :key="t.name" class="nav-item" :class="{ on: t.name === current }" :href="'#' + t.name" @click.prevent="$emit('select', t.name)" @mouseenter="$emit('tip', t.name, $event.currentTarget)" @mouseleave="$emit('tip-hide')">
+            <span class="nav-dot" :class="t.kind"></span>{{ t.name }}
+          </a>
+        </div>
+      </template>
+    </nav>
+    <div class="side-foot" id="foot">{{ foot }}</div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-toolbar.js ---- */
+__eih["runtime/components/erd-toolbar.js"] = (() => {
+const tag = "erd-toolbar";
+const name = "ErdToolbar";
+
+function define() {
+  return {
+    name,
+    props: {
+      brand: { type: String, default: "" },
+      mode: { type: String, default: "list" },
+      filter: { type: String, default: "" },
+    },
+    emits: ["update:filter", "mode", "menu"],
+    setup() { return {}; },
+    template: `<div class="side-head">
+      <div class="brand"><span class="brand-dot"></span><span id="brandName">{{ brand }}</span><span class="brand-sub">Schema</span></div>
+      <div class="seg" id="modeSeg">
+        <button type="button" :class="{ on: mode === 'list' }" @click="$emit('mode', 'list')">列表</button>
+        <button type="button" :class="{ on: mode === 'graph' }" @click="$emit('mode', 'graph')">关系图</button>
+      </div>
+      <input id="search" type="search" placeholder="搜索表名 / 注释…" autocomplete="off" :value="filter" @input="$emit('update:filter', $event.target.value)">
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-table-list.js ---- */
+__eih["runtime/components/erd-table-list.js"] = (() => {
+const tag = "erd-table-list";
+const name = "ErdTableList";
+
+function define() {
+  return {
+    name,
+    props: {
+      blocks: { type: Array, default: () => [] },
+      schema: { type: Object, required: true },
+      byName: { type: Object, required: true },
+      types: { type: Object, default: () => ({}) },
+    },
+    emits: ["open-tab", "go-graph", "ts-tip", "ts-hide", "tip", "tip-hide", "bind-el"],
+    setup(props, { emit }) {
+      function bind(name, el) { emit("bind-el", name, el); }
+      return { bind };
+    },
+    template: `<div class="wrap" id="content">
+      <template v-for="(b, i) in blocks" :key="b.table ? b.table.name : 'd'+b.mark+i">
+        <div v-if="b.mark" class="dom-mark">{{ b.mark }}</div>
+        <section v-else class="t-block" :id="b.table.name" :data-name="b.table.name" :ref="el => bind(b.table.name, el)">
+          <erd-table-card :table="b.table" :schema="schema" :by-name="byName" :types="types" @open-tab="$emit('open-tab', $event)" @go-graph="$emit('go-graph', $event)" @ts-tip="(n, el) => $emit('ts-tip', n, el)" @ts-hide="$emit('ts-hide')" @tip="(n, el) => $emit('tip', n, el)" @tip-hide="$emit('tip-hide')"></erd-table-card>
+        </section>
+      </template>
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/eih-tab-strip.js ---- */
+__eih["runtime/components/eih-tab-strip.js"] = (() => {
+const tag = "eih-tab-strip";
+const name = "EihTabStrip";
+
+function define(Vue) {
+  return {
+    name,
+    props: {
+      tabs: { type: Array, default: () => [] },
+      active: { type: String, default: null },
+      tabClass: { type: Function, default: n => "tab" + (n ? "" : "") },
+    },
+    emits: ["select", "close"],
+    setup(props) {
+      function cls(n) {
+        const base = typeof props.tabClass === "function" ? props.tabClass(n) : "tab";
+        return ((base || "tab") + (n === props.active ? " on" : "")).trim();
+      }
+      return { cls };
+    },
+    template: `<div class="tab-strip" id="tabStrip">
+      <div v-for="n in tabs" :key="n" :class="cls(n)" @click="$emit('select', n)">
+        <span class="dot"></span>{{ n }}
+        <span class="x" @click.stop="$emit('close', n)">×</span>
+      </div>
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/composables/use-pane-resize.js ---- */
+__eih["runtime/composables/use-pane-resize.js"] = (() => {
+const useListeners = __eih["runtime/composables/use-listeners.js"].useListeners;
+
+/** One active pointer owns resize, capture, listeners and the final committed width. */
+function usePaneResize(Vue, { width, min, maxOf, onCommit, grabbing } = {}) {
+  const { ref, onBeforeUnmount } = Vue;
+  const { listen } = useListeners(Vue);
+  const dragging = ref(false);
+  const gripEl = ref(null);
+  let gesture = null;
+  let disposed = false;
+  function matches(e) { return gesture && (gesture.id == null || e?.pointerId == null || e.pointerId === gesture.id); }
+  function finish(commit = false) {
+    const d = gesture;
+    if (!d) return;
+    gesture = null;
+    for (const off of d.offs) off();
+    dragging.value = false;
+    if (grabbing) grabbing.value = false;
+    if (d.el?.releasePointerCapture && d.id != null) {
+      try { d.el.releasePointerCapture(d.id); } catch { /* capture already lost */ }
+    }
+    if (commit) onCommit?.(d.width);
+  }
+  function onGripDown(ev) {
+    if (disposed || gesture || ev.button || ev.isPrimary === false) return false;
+    ev.preventDefault();
+    const d = { id: ev.pointerId, el: ev.currentTarget, width: width.value, offs: [] };
+    gesture = d;
+    dragging.value = true;
+    if (grabbing) grabbing.value = true;
+    const target = typeof window !== "undefined" ? window : d.el;
+    d.offs.push(listen(target, "pointermove", e => {
+      if (!matches(e)) return;
+      const vw = typeof innerWidth === "number" ? innerWidth : 1200;
+      const max = typeof maxOf === "function" ? maxOf(vw) : vw;
+      const lo = typeof min === "function" ? min(vw) : min;
+      d.width = Math.min(Math.max(vw - e.clientX, lo), max);
+      width.value = d.width;
+    }));
+    d.offs.push(listen(target, "pointerup", e => { if (matches(e)) finish(true); }));
+    d.offs.push(listen(target, "pointercancel", e => { if (matches(e)) finish(false); }));
+    d.offs.push(listen(d.el, "lostpointercapture", e => { if (matches(e)) finish(false); }));
+    if (d.el?.setPointerCapture && d.id != null) {
+      try { d.el.setPointerCapture(d.id); } catch { /* global listeners remain usable */ }
+    }
+    return true;
+  }
+  function interrupt() { finish(false); }
+  onBeforeUnmount?.(() => { disposed = true; interrupt(); });
+  return { gripEl, dragging, onGripDown, interrupt };
+}
+
+  return { usePaneResize };
+})();
+
+
+/* ---- runtime/components/eih-side-pane.js ---- */
+__eih["runtime/components/eih-side-pane.js"] = (() => {
+const usePaneResize = __eih["runtime/composables/use-pane-resize.js"].usePaneResize;
+const API_PANE_MIN = __eih["core/chrome.js"].API_PANE_MIN;
+const API_MAIN_MIN = __eih["core/chrome.js"].API_MAIN_MIN;
+const ERD_PANE_MIN = __eih["core/chrome.js"].ERD_PANE_MIN;
+const ERD_PANE_MAX = __eih["core/chrome.js"].ERD_PANE_MAX;
+
+const tag = "eih-side-pane";
+const name = "EihSidePane";
+
+/**
+ * 右侧详情栏。宽度由 props.width 单源输入，拖拽只 $emit('resize'|'commit')。
+ * overlay 时改为覆盖层宽度计算（不挤占主栏）。卸载时释放 pointer capture。
+ */
+function define(Vue) {
+  const { computed, ref } = Vue;
+  return {
+    name,
+    props: {
+      shown: { type: Boolean, default: false },
+      width: { type: Number, default: 400 },
+      kind: { type: String, default: "api" },
+      overlay: { type: Boolean, default: false },
+    },
+    emits: ["resize", "commit"],
+    setup(props, { emit }) {
+      const grabbing = ref(false);
+      const paneStyle = computed(() => ({ width: props.width + "px" }));
+      const widthRef = computed({
+        get: () => props.width,
+        set: v => emit("resize", v),
+      });
+      function maxOf(vw) {
+        if (props.overlay) return Math.max(200, vw - 24);
+        if (props.kind === "erd") return Math.min(ERD_PANE_MAX, vw * 0.62);
+        return Math.max(API_PANE_MIN, vw - API_MAIN_MIN);
+      }
+      function minOf(vw) {
+        const floor = props.kind === "erd" ? ERD_PANE_MIN : API_PANE_MIN;
+        if (props.overlay) return Math.min(floor, Math.max(200, (vw || 1200) - 24));
+        return floor;
+      }
+      const pane = usePaneResize(Vue, {
+        width: widthRef,
+        min: minOf,
+        maxOf,
+        onCommit: w => emit("commit", w),
+        grabbing,
+      });
+      return { paneStyle, gripEl: pane.gripEl, grabbing, onGripDown: pane.onGripDown };
+    },
+    template: `<aside id="pane" class="eih-pane" :class="{ show: shown, overlay: overlay }" :style="paneStyle">
+      <div id="paneGrip" class="pane-grip" :class="{ on: grabbing }" ref="gripEl" @pointerdown="onGripDown"></div>
+      <slot name="tabs"></slot>
+      <div id="tabBody" class="tab-body"><slot></slot></div>
+    </aside>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/eih-tooltip.js ---- */
+__eih["runtime/components/eih-tooltip.js"] = (() => {
+const tag = "eih-tooltip";
+const name = "EihTooltip";
+
+/**
+ * 悬浮框根节点。measure-ref 须为 setter 函数（或带 .value 的袋），
+ * 在根元素挂载后写入，供 useTooltip 测量。不要把顶层 ref 直接绑到这个 prop（模板会自动解包成 null）。
+ */
+function define() {
+  return {
+    name,
+    props: {
+      show: { type: Boolean, default: false },
+      stylePos: { type: Object, default: () => ({ display: "none" }) },
+      variant: { type: String, default: "" },
+      measureRef: { default: null },
+    },
+    emits: ["enter", "leave"],
+    setup(props) {
+      function setRoot(el) {
+        const t = props.measureRef;
+        if (typeof t === "function") t(el || null);
+        else if (t && typeof t === "object") t.value = el || null;
+      }
+      return { setRoot };
+    },
+    template: `<div class="eih-tip" id="tip" :class="{ 'is-ts': variant === 'ts' }" :style="stylePos" :ref="setRoot" @mouseenter="$emit('enter')" @mouseleave="$emit('leave')"><slot></slot></div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-graph-node.js ---- */
+__eih["runtime/components/erd-graph-node.js"] = (() => {
+const tag = "erd-graph-node";
+const name = "ErdGraphNode";
+
+function define() {
+  return {
+    name,
+    props: {
+      node: { type: Object, required: true },
+      selected: { type: Boolean, default: false },
+      dimmed: { type: Boolean, default: false },
+      hotDim: { type: Boolean, default: false },
+    },
+    emits: ["pointerdown", "enter", "leave"],
+    setup() { return {}; },
+    template: `<g class="gn" :class="{ gd: node.dia, sel: selected, dim: dimmed, hdim: hotDim }" :transform="'translate(' + node.x + ' ' + node.y + ')'" @pointerdown.stop="$emit('pointerdown', $event, node)" @mouseenter="$emit('enter', node, $event)" @mouseleave="$emit('leave', node, $event)">
+      <template v-if="node.dia">
+        <path class="gn-d" :d="'M0 ' + (-node.r) + ' L' + node.r + ' 0 L0 ' + node.r + ' L' + (-node.r) + ' 0 Z'" :fill="node.color" fill-opacity=".12" :stroke="node.color" stroke-opacity=".75"></path>
+        <text class="gn-t gn-ts" :y="node.r + 16">{{ node.name }}</text>
+      </template>
+      <template v-else>
+        <rect class="gn-r" :x="-node.w / 2" :y="-node.h / 2" :width="node.w" :height="node.h" rx="9" :fill="node.color" fill-opacity=".07" :stroke="node.color" stroke-opacity=".62"></rect>
+        <rect v-if="node.kind === 'weak'" :x="-node.w / 2 + 4" :y="-node.h / 2 + 4" :width="node.w - 8" :height="node.h - 8" rx="6" fill="none" :stroke="node.color" stroke-opacity=".35"></rect>
+        <text class="gn-t" y="5">{{ node.name }}</text>
+      </template>
+    </g>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-graph-edge.js ---- */
+__eih["runtime/components/erd-graph-edge.js"] = (() => {
+const tag = "erd-graph-edge";
+const name = "ErdGraphEdge";
+
+/** Geometry and hover only; the canvas owns the single pointer state machine. */
+function define() {
+  return {
+    name,
+    props: {
+      view: { type: Object, required: true },
+      dimmed: { type: Boolean, default: false },
+      hot: { type: Boolean, default: false },
+    },
+    emits: ["enter", "leave"],
+    setup() { return {}; },
+    template: `<g class="eg" :class="[view.cls, { dim: dimmed, hot: hot }]" :data-id="view.edge.id" @mouseenter="$emit('enter', view, $event)" @mouseleave="$emit('leave', view, $event)">
+      <path class="ge-hit" :d="view.geom.d"></path>
+      <path class="ge" :d="view.geom.d" :marker-end="view.hasArrow ? 'url(#gArr)' : null"></path>
+      <text v-if="view.chrome.label && (view.chrome.showL || hot)" class="ge-lb" :x="view.chrome.labelX" :y="view.chrome.labelY">{{ view.chrome.label }}</text>
+      <g v-if="view.chrome.showBadge || (hot && view.edge.kind === 'n:m' && view.chrome.attrCount)" class="ge-ba" :transform="view.chrome.badgeTransform">
+        <rect width="23" height="13" rx="6.5"></rect>
+        <text x="11.5" y="9.7">+{{ view.chrome.attrCount }}</text>
+      </g>
+      <text v-if="view.chrome.tickA && (view.chrome.showT || hot)" class="ge-tk" :x="view.chrome.tickA.x" :y="view.chrome.tickA.y">{{ view.chrome.tickA.text }}</text>
+      <text v-if="view.chrome.tickB && (view.chrome.showT || hot)" class="ge-tk" :x="view.chrome.tickB.x" :y="view.chrome.tickB.y">{{ view.chrome.tickB.text }}</text>
+    </g>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-graph-hull.js ---- */
+__eih["runtime/components/erd-graph-hull.js"] = (() => {
+const tag = "erd-graph-hull";
+const name = "ErdGraphHull";
+
+function define() {
+  return {
+    name,
+    props: { hull: { type: Object, required: true } },
+    setup() { return {}; },
+    template: `<g class="hull">
+      <rect :x="hull.x" :y="hull.y" :width="hull.w" :height="hull.h" rx="12" :fill="hull.color" fill-opacity=".05" :stroke="hull.color" stroke-opacity=".25" stroke-dasharray="3 6"></rect>
+      <text class="hull-t" :x="hull.tx" :y="hull.ty" :fill="hull.color">{{ hull.name }}</text>
+    </g>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-graph-legend.js ---- */
+__eih["runtime/components/erd-graph-legend.js"] = (() => {
+const tag = "erd-graph-legend";
+const name = "ErdGraphLegend";
+
+function define() {
+  return {
+    name,
+    props: {
+      items: { type: Array, default: () => [] },
+      focus: { type: String, default: null },
+    },
+    emits: ["toggle"],
+    setup() { return {}; },
+    template: `<div id="gLegend" class="g-legend">
+      <button v-for="g in items" :key="g.name" type="button" class="gl" :class="{ on: focus === g.name }" @click="$emit('toggle', g.name)">
+        <i :style="{ background: g.color }"></i>{{ g.name }}<span class="n">{{ g.count }}</span>
+      </button>
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-graph-toolbar.js ---- */
+__eih["runtime/components/erd-graph-toolbar.js"] = (() => {
+const tag = "erd-graph-toolbar";
+const name = "ErdGraphToolbar";
+
+function define() {
+  return {
+    name,
+    props: {
+      showRef: { type: Boolean, default: false },
+      showHull: { type: Boolean, default: true },
+    },
+    emits: ["update:showRef", "update:showHull", "zoom-in", "zoom-out", "fit", "relayout"],
+    setup() { return {}; },
+    template: `<div id="gBar" class="g-bar">
+      <label><input type="checkbox" :checked="showRef" @change="$emit('update:showRef', $event.target.checked)">引用边</label>
+      <label><input type="checkbox" :checked="showHull" @change="$emit('update:showHull', $event.target.checked)">分组</label>
+      <button type="button" @click="$emit('zoom-out')">−</button>
+      <button type="button" @click="$emit('zoom-in')">+</button>
+      <button type="button" @click="$emit('fit')">适应</button>
+      <button type="button" @click="$emit('relayout')">重排</button>
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-graph.js ---- */
+__eih["runtime/components/erd-graph.js"] = (() => {
+const visibleEdges = __eih["core/graph-model.js"].visibleEdges;
+const assignEdgeOffsets = __eih["core/graph-model.js"].assignEdgeOffsets;
+const neighborNames = __eih["core/graph-model.js"].neighborNames;
+const edgeDetailName = __eih["core/graph-model.js"].edgeDetailName;
+const layoutFromView = __eih["core/graph-layout.js"].layoutFromView;
+const layoutGraph = __eih["core/graph-layout.js"].layoutGraph;
+const sizeNodes = __eih["core/graph-layout.js"].sizeNodes;
+const deriveEdgeViews = __eih["core/graph-geometry.js"].deriveEdgeViews;
+const computeHulls = __eih["core/graph-geometry.js"].computeHulls;
+const legendItems = __eih["core/graph-geometry.js"].legendItems;
+const loadPositions = __eih["core/storage.js"].loadPositions;
+const savePositions = __eih["core/storage.js"].savePositions;
+const clearPositions = __eih["core/storage.js"].clearPositions;
+const getStorage = __eih["core/storage.js"].getStorage;
+const usePanZoom = __eih["runtime/composables/use-pan-zoom.js"].usePanZoom;
+const useNodeDrag = __eih["runtime/composables/use-node-drag.js"].useNodeDrag;
+const useSelection = __eih["runtime/composables/use-selection.js"].useSelection;
+const useTooltip = __eih["runtime/composables/use-tooltip.js"].useTooltip;
+
+const tag = "erd-graph";
+const name = "ErdGraph";
+
+/**
+ * 关系图画布。节点/边/hull/图例由模板 v-for 声明式渲染。
+ * 拖拽只改响应式坐标，边与 hull 由 computed 派生。
+ * cssVars / bg 必须从 setup 顶层返回，模板才能自动解包 ComputedRef。
+ */
+function define(Vue) {
+  const { reactive, ref, computed, watch, nextTick, onMounted, onBeforeUnmount } = Vue;
+  return {
+    name,
+    props: {
+      view: { type: Object, required: true },
+      storage: { type: Object, default: null },
+      wide: { type: Boolean, default: true },
+    },
+    emits: ["open-tab", "open-list"],
+    setup(props, { emit }) {
+      const store = props.storage || getStorage();
+      const schemaName = computed(() => (props.view.data && props.view.data.name) || "schema");
+      const nodes = reactive([]);
+      const edges = reactive([]);
+      const showRef = ref(false);
+      const showHull = ref(true);
+      const wrapEl = ref(null);
+      const svgEl = ref(null);
+      let fittedOnce = false;
+      let rafId = null;
+      let disposed = false;
+      let activation = 0;
+
+      function hydrateFromView({ useStorage = false } = {}) {
+        const saved = useStorage
+          ? loadPositions(store, schemaName.value)
+          : Object.fromEntries(nodes.map(n => [n.name, { x: n.x, y: n.y }]));
+        const model = layoutFromView(props.view, saved);
+        const have = new Map(nodes.map(n => [n.name, n]));
+        const next = [];
+        for (const n of model.nodes) {
+          const old = have.get(n.name);
+          if (old) {
+            old.edges = n.edges;
+            old.color = n.color;
+            old.w = n.w; old.h = n.h; old.r = n.r;
+            old.kind = n.kind; old.dia = n.dia; old.domain = n.domain;
+            next.push(old);
+          } else {
+            next.push(n);
+          }
+        }
+        nodes.splice(0, nodes.length, ...next);
+        edges.splice(0, edges.length, ...model.edges);
+      }
+
+      hydrateFromView({ useStorage: true });
+
+      const pz = usePanZoom(Vue, {
+        getSvgRect: () => svgEl.value && svgEl.value.getBoundingClientRect && svgEl.value.getBoundingClientRect(),
+        getViewSize: () => wrapEl.value && wrapEl.value.getBoundingClientRect && wrapEl.value.getBoundingClientRect(),
+        nodes: () => nodes,
+        showHull,
+      });
+      const cssVars = pz.cssVars;
+      const bg = pz.bg;
+      const pzView = pz.view;
+      const sel = useSelection(Vue);
+      const tip = useTooltip(Vue, { delay: 0 });
+      const drag = useNodeDrag(Vue, {
+        view: pz.view,
+        onDrop: () => savePositions(store, schemaName.value, nodes),
+      });
+
+      const visEdges = computed(() => assignEdgeOffsets(visibleEdges(edges, showRef.value).map(e => Object.assign({}, e))));
+      const revealIds = computed(() => {
+        const set = new Set();
+        if (sel.hotEdge.value) set.add(sel.hotEdge.value.id);
+        if (sel.hot.value) {
+          const n = nodes.find(x => x.name === sel.hot.value);
+          if (n) for (const e of n.edges || []) set.add(e.id);
+        }
+        return set;
+      });
+      const edgeViews = computed(() => deriveEdgeViews(visEdges.value, nodes, pz.view.k, { revealIds: revealIds.value }));
+      const hulls = computed(() => showHull.value ? computeHulls(nodes) : []);
+      const legend = computed(() => legendItems(nodes, props.view.groups));
+      const byN = computed(() => Object.fromEntries(nodes.map(n => [n.name, n])));
+
+      function isNodeDim(n) {
+        const f = sel.focusDomain.value;
+        return !!f && n.domain !== f;
+      }
+      function isNodeHotDim(n) {
+        if (sel.hotEdge.value) return n.name !== sel.hotEdge.value.a && n.name !== sel.hotEdge.value.b;
+        if (!sel.hot.value) return false;
+        const node = byN.value[sel.hot.value];
+        const set = neighborNames(node || { name: sel.hot.value, edges: [] });
+        return !set.has(n.name);
+      }
+      function isEdgeDim(v) {
+        const f = sel.focusDomain.value;
+        const e = v.edge;
+        const A = byN.value[e.a], B = byN.value[e.b];
+        if (f && A && B && A.domain !== f && B.domain !== f) return true;
+        if (sel.hotEdge.value) return e.id !== sel.hotEdge.value.id;
+        if (sel.hot.value) return e.a !== sel.hot.value && e.b !== sel.hot.value;
+        return false;
+      }
+      function isEdgeHot(v) {
+        return !!(sel.hotEdge.value && sel.hotEdge.value.id === v.edge.id)
+          || !!(sel.hot.value && (v.edge.a === sel.hot.value || v.edge.b === sel.hot.value));
+      }
+
+      function openDetail(name) {
+        if (!name) return;
+        if (props.wide) emit("open-tab", name);
+        else emit("open-list", name);
+      }
+
+      function onNodeDown(ev, node) { drag.pointerDown(ev, node); }
+      function onCanvasDown(ev) {
+        if (ev.target && ev.target.closest && ev.target.closest(".gn")) return;
+        const edgeEl = ev.target?.closest?.(".eg");
+        drag.pointerDown(ev, null, edgeEl?.getAttribute("data-id") || null);
+      }
+      function onMove(ev) {
+        if (tip.tip.show && tip.tip.kind === "edge") tip.movePointer(ev.clientX, ev.clientY);
+        drag.pointerMove(ev);
+      }
+      function onUp(ev) {
+        drag.pointerUp(ev, {
+          onTap: ({ node, edgeId }) => {
+            if (node) { sel.select(node.name); openDetail(node.name); return; }
+            const edge = edgeId && edges.find(e => e.id === edgeId);
+            if (edge) { openDetail(edgeDetailName(edge)); return; }
+            sel.select(null);
+            sel.clearHot();
+            tip.hide();
+          },
+        });
+        pz.panning.value = false;
+      }
+      function onCancel(ev) { drag.pointerCancel(ev); pz.panning.value = false; }
+      function onDbl(ev) {
+        if (ev.target && ev.target.closest && (ev.target.closest(".gn") || ev.target.closest(".eg"))) return;
+        pz.fit();
+      }
+      function onEnterNode(node) { sel.setHot(node.name); tip.hide(); }
+      function onLeaveNode() { sel.clearHot(); }
+      function onEnterEdge(v, ev) {
+        sel.setHot(null, v.edge);
+        tip.show({ kind: "edge", payload: v.edge, x: ev.clientX, y: ev.clientY, anchor: null }, 0);
+      }
+      function onLeaveEdge() { sel.clearHot(); tip.hide(); }
+
+      function relayout() {
+        clearPositions(store, schemaName.value);
+        sizeNodes(nodes);
+        layoutGraph(nodes, edges, props.view.groups || [], {});
+        pz.fit();
+        savePositions(store, schemaName.value, nodes);
+      }
+
+      function cancelRaf() {
+        if (rafId != null && typeof cancelAnimationFrame === "function") cancelAnimationFrame(rafId);
+        rafId = null;
+      }
+
+      function whenSized(fn) {
+        const generation = ++activation;
+        cancelRaf();
+        const tryRun = () => {
+          if (disposed || generation !== activation) return true;
+          if (pz.measure) pz.measure();
+          const s = pz.size;
+          if (s && s.width > 0 && s.height > 0) {
+            fn();
+            return true;
+          }
+          return false;
+        };
+        const afterTick = () => {
+          if (disposed || generation !== activation) return;
+          if (tryRun()) return;
+          cancelRaf();
+          if (typeof requestAnimationFrame === "function") {
+            rafId = requestAnimationFrame(() => {
+              rafId = null;
+              tryRun();
+            });
+          }
+        };
+        if (typeof nextTick === "function") nextTick(afterTick);
+        else afterTick();
+      }
+
+      function activate(opts = {}) {
+        const { fit = false, focusName = null } = opts;
+        whenSized(() => {
+          if (focusName) {
+            const nd = nodes.find(n => n.name === focusName);
+            if (nd) {
+              fittedOnce = true;
+              pz.focusNode(nd);
+              sel.select(focusName);
+              sel.setHot(focusName);
+              return;
+            }
+            openDetail(focusName);
+            return;
+          }
+          if (fit || !fittedOnce) {
+            pz.fit();
+            fittedOnce = true;
+          }
+        });
+      }
+
+      function focusNode(name) {
+        return activate({ focusName: name });
+      }
+
+      function syncFromView() {
+        drag.interrupt();
+        tip.hide();
+        hydrateFromView({ useStorage: false });
+        const names = new Set(nodes.map(n => n.name));
+        if (!names.has(sel.selected.value)) sel.select(null);
+        if (sel.hot.value && !names.has(sel.hot.value)) sel.clearHot();
+        if (sel.hotEdge.value) {
+          const current = edges.find(e => e.id === sel.hotEdge.value.id);
+          if (current) sel.setHot(null, current);
+          else { sel.clearHot(); tip.hide(); }
+        }
+        if (sel.focusDomain.value && !nodes.some(n => n.domain === sel.focusDomain.value)) sel.focusDomain.value = null;
+      }
+
+      watch(() => props.view, syncFromView, { deep: true });
+
+      onMounted(() => {
+        pz.attachGestures(wrapEl.value);
+        activate({ fit: true });
+      });
+      onBeforeUnmount(() => {
+        disposed = true;
+        activation++;
+        cancelRaf();
+        if (pz.cleanup) pz.cleanup();
+        drag.interrupt();
+      });
+
+      const panning = computed(() => {
+        const d = drag.drag.value;
+        return !!(d && d.moved && d.kind === "pan");
+      });
+      const edgeTip = computed(() => tip.tip.kind === "edge" ? tip.tip.payload : null);
+      const selected = sel.selected;
+      const focusDomain = sel.focusDomain;
+      const tipShow = computed(() => tip.tip.show);
+      const tipStyle = tip.style;
+
+      return {
+        nodes, showRef, showHull, wrapEl, svgEl, pz, sel, tip, drag,
+        cssVars, bg, pzView,
+        selected, focusDomain, tipShow, tipStyle,
+        edgeViews, hulls, legend, edgeTip, panning,
+        isNodeDim, isNodeHotDim, isEdgeDim, isEdgeHot,
+        onNodeDown, onCanvasDown, onMove, onUp, onCancel, onDbl,
+        onEnterNode, onLeaveNode, onEnterEdge, onLeaveEdge,
+        relayout, activate, focusNode,
+      };
+    },
+    template: `<div class="graph-wrap" id="graphWrap" ref="wrapEl" :class="{ pan: panning }">
+      <svg class="g-svg" id="gSvg" ref="svgEl" :style="cssVars" @pointerdown="onCanvasDown" @pointermove="onMove" @pointerup="onUp" @pointercancel="onCancel" @lostpointercapture="onCancel" @dblclick="onDbl" @mouseleave="onLeaveNode(); tip.hide()">
+        <defs>
+          <marker id="gArr" viewBox="0 0 10 10" refX="9.4" refY="5" markerWidth="7.5" markerHeight="7.5" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+          <pattern id="gDots" width="26" height="26" patternUnits="userSpaceOnUse">
+            <circle cx="1" cy="1" r="1" class="g-dot"></circle>
+          </pattern>
+        </defs>
+        <g id="gVp" :transform="'translate(' + pzView.tx + ' ' + pzView.ty + ') scale(' + pzView.k + ')'">
+          <rect id="gBg" fill="url(#gDots)" :x="bg.x" :y="bg.y" :width="bg.w" :height="bg.h"></rect>
+          <g id="gHulls">
+            <erd-graph-hull v-for="h in hulls" :key="h.name" :hull="h"></erd-graph-hull>
+          </g>
+          <g id="gEdges">
+            <erd-graph-edge v-for="v in edgeViews" :key="v.edge.id" :view="v" :dimmed="isEdgeDim(v)" :hot="isEdgeHot(v)" @enter="onEnterEdge" @leave="onLeaveEdge"></erd-graph-edge>
+          </g>
+          <g id="gNodes">
+            <erd-graph-node v-for="n in nodes" :key="n.name" :node="n" :selected="selected === n.name" :dimmed="isNodeDim(n)" :hot-dim="isNodeHotDim(n)" @pointerdown="onNodeDown" @enter="onEnterNode" @leave="onLeaveNode"></erd-graph-node>
+          </g>
+        </g>
+      </svg>
+      <erd-graph-legend :items="legend" :focus="focusDomain" @toggle="sel.toggleDomain"></erd-graph-legend>
+      <erd-graph-toolbar :show-ref="showRef" :show-hull="showHull" @update:showRef="v => showRef = v" @update:showHull="v => showHull = v" @zoom-in="pz.zoomBy(1.45)" @zoom-out="pz.zoomBy(1/1.45)" @fit="pz.fit()" @relayout="relayout"></erd-graph-toolbar>
+      <eih-tooltip :show="tipShow" :style-pos="tipStyle" :measure-ref="tip.bindBox" variant="">
+        <template v-if="edgeTip && edgeTip.kind === 'n:m'">
+          <div class="tp-head"><b>{{ edgeTip.via }}</b><span class="dom">N:M 关系表</span></div>
+          <div class="tp-row"><span class="tp-n">{{ edgeTip.a }}</span><span class="tp-t">↔ {{ edgeTip.b }}</span></div>
+        </template>
+        <template v-else-if="edgeTip && edgeTip.kind === 'nary'">
+          <div class="tp-head"><b>{{ edgeTip.via }}</b><span class="dom">N 元关系表</span></div>
+          <div class="tp-row"><span class="tp-n">{{ edgeTip.col || '' }}</span><span class="tp-t">──▶ {{ edgeTip.b }}</span></div>
+        </template>
+        <template v-else-if="edgeTip">
+          <div class="tp-head"><b>{{ edgeTip.a }}.{{ edgeTip.aCol || '' }}</b><span class="dom">{{ edgeTip.kind }}</span></div>
+          <div class="tp-row"><span class="tp-n">──▶ {{ edgeTip.b }}.{{ edgeTip.bCol || '' }}</span><span class="tp-t">{{ edgeTip.role || '' }}</span></div>
+        </template>
+        <div v-if="edgeTip && edgeTip.attrs && edgeTip.attrs.length" class="tp-foot">关联属性：{{ edgeTip.attrs.join('，') }}</div>
+      </eih-tooltip>
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/erd-explorer.js ---- */
+__eih["runtime/components/erd-explorer.js"] = (() => {
+const buildErdView = __eih["core/erd-view.js"].buildErdView;
+const tableMatches = __eih["core/erd-view.js"].tableMatches;
+const orderedGroupTables = __eih["core/erd-view.js"].orderedGroupTables;
+const footText = __eih["core/erd-view.js"].footText;
+const ERD_PANE_KEY = __eih["core/storage.js"].ERD_PANE_KEY;
+const defaultErdPane = __eih["core/chrome.js"].defaultErdPane;
+const isWide = __eih["core/chrome.js"].isWide;
+const useSearch = __eih["runtime/composables/use-search.js"].useSearch;
+const useTabs = __eih["runtime/composables/use-tabs.js"].useTabs;
+const usePersistent = __eih["runtime/composables/use-persistent.js"].usePersistent;
+const useTooltip = __eih["runtime/composables/use-tooltip.js"].useTooltip;
+const useMedia = __eih["runtime/composables/use-media.js"].useMedia;
+const useDrawer = __eih["runtime/composables/use-drawer.js"].useDrawer;
+const useScrollSpy = __eih["runtime/composables/use-scroll-spy.js"].useScrollSpy;
+const useHashNav = __eih["runtime/composables/use-hash-nav.js"].useHashNav;
+const useListeners = __eih["runtime/composables/use-listeners.js"].useListeners;
+const recolorTables = __eih["runtime/composables/use-scheme.js"].recolorTables;
+
+const tag = "erd-explorer";
+const name = "ErdExplorer";
+
+function define(Vue) {
+  const { computed, ref, watch, nextTick, onMounted } = Vue;
+  return {
+    name,
+    props: { schema: { type: Object, required: true } },
+    setup(props) {
+      const persist = usePersistent(Vue);
+      const { viewport, dark } = useMedia(Vue);
+      const { listen } = useListeners(Vue);
+      const view = computed(() => buildErdView(props.schema, dark.value));
+      const data = computed(() => view.value.data);
+      const byName = computed(() => view.value.byName);
+      const groups = computed(() => view.value.groups);
+      const typesByName = computed(() => view.value.typesByName);
+      const { filter } = useSearch(Vue);
+      const current = ref((props.schema.tables && props.schema.tables[0] && props.schema.tables[0].name) || "");
+      const mode = ref("list");
+      const graphRef = ref(null);
+      const tabs = useTabs(Vue, { isOpenable: id => !!byName.value[id] });
+      const defPane = defaultErdPane(typeof innerWidth === "number" ? innerWidth : 1200);
+      const paneW = ref(persist.readNumber(ERD_PANE_KEY, defPane));
+      const paneOn = computed(() => tabs.hasTabs.value && isWide(viewport.value));
+      const drawer = useDrawer(Vue, { viewport, paneW, paneOn });
+      const spy = useScrollSpy(Vue, { current });
+      const tip = useTooltip(Vue, { delay: 260 });
+
+      const navGroups = computed(() => {
+        const out = [];
+        for (const g of groups.value) {
+          const ts = g.tables.filter(t => tableMatches(t, filter.value));
+          if (!ts.length) continue;
+          out.push({ name: g.name, color: g.color, tables: orderedGroupTables(ts) });
+        }
+        return out;
+      });
+      const navEmpty = computed(() => navGroups.value.length === 0);
+      const foot = computed(() => footText(data.value));
+      const contentBlocks = computed(() => {
+        const blocks = [];
+        let last = "";
+        for (const t of data.value.tables || []) {
+          if (t.domain !== last) { blocks.push({ mark: t.domain }); last = t.domain; }
+          blocks.push({ table: t });
+        }
+        return blocks;
+      });
+      const tableNames = computed(() => (data.value.tables || []).map(t => t.name));
+      const paneWidth = drawer.paneWidth;
+      const sideOff = drawer.sideOff;
+      const menuOpen = drawer.menuOpen;
+      const wide = drawer.wide;
+      const brand = computed(() => data.value.name || "Schema");
+      const tipTable = computed(() => {
+        if (tip.tip.kind !== "table") return null;
+        return byName.value[tip.tip.payload] || null;
+      });
+      const tipTs = computed(() => {
+        if (tip.tip.kind !== "ts") return null;
+        const n = tip.tip.payload;
+        return { n, src: typesByName.value[n] || n };
+      });
+      const activeTable = computed(() => (tabs.active.value && byName.value[tabs.active.value]) || null);
+
+      function setMode(m) {
+        mode.value = m === "graph" ? "graph" : "list";
+        drawer.closeMenu();
+        tip.hide();
+        if (mode.value === "graph") {
+          nextTick(() => {
+            if (graphRef.value && graphRef.value.activate) graphRef.value.activate({ fit: false });
+          });
+        }
+      }
+      function openTab(n) {
+        if (!wide.value) {
+          mode.value = "list";
+          drawer.closeMenu();
+          nextTick(() => spy.scrollToName(n));
+          return;
+        }
+        tabs.open(n);
+      }
+      function goGraph(name) {
+        mode.value = "graph";
+        drawer.closeMenu();
+        tip.hide();
+        nextTick(() => {
+          if (graphRef.value && graphRef.value.activate) graphRef.value.activate({ focusName: name });
+        });
+      }
+      function onOpenList(n) {
+        mode.value = "list";
+        drawer.closeMenu();
+        nextTick(() => spy.scrollToName(n));
+      }
+      function onNav(name) {
+        if (mode.value === "graph") goGraph(name);
+        else {
+          spy.scrollToName(name);
+          drawer.closeMenu();
+        }
+      }
+      function showTableTip(n, el) { tip.show({ kind: "table", payload: n, anchor: el }, 260); }
+      function showTsTip(n, el) { tip.show({ kind: "ts", payload: n, anchor: el, preferRight: true }, 120); }
+      function tabClass() { return "tab"; }
+      function onResize(w) { paneW.value = w; }
+      function onCommit(w) { persist.writeText(ERD_PANE_KEY, w); }
+      function onScroll() { if (mode.value === "list") spy.onScroll(tableNames.value); }
+
+      useHashNav(Vue, {
+        onHash: name => {
+          if (!name || !byName.value[name]) return;
+          if (mode.value === "graph") goGraph(name);
+          else spy.scrollToName(name, true);
+        },
+      });
+
+      watch(dark, (d) => {
+        recolorTables(props.schema, d);
+        // The view prop drives graph synchronization; no imperative child refresh.
+      });
+
+      onMounted(() => {
+        listen(typeof window !== "undefined" ? window : null, "scroll", onScroll, { passive: true });
+      });
+
+      const tipShow = computed(() => tip.tip.show);
+      const tipVariant = computed(() => tip.tip.kind === "ts" ? "ts" : "");
+
+      return {
+        view, data, byName, typesByName, filter, current, mode, graphRef,
+        navGroups, navEmpty, foot, contentBlocks, brand,
+        tabList: tabs.tabs, activeTab: tabs.active, hasTabs: tabs.hasTabs, activeTable,
+        paneWidth, paneW, sideOff, menuOpen, wide,
+        tip, tipShow, tipStyle: tip.style, tipVariant, tipTable, tipTs,
+        setMode, openTab, goGraph, onNav, showTableTip, showTsTip, tabClass,
+        onResize, onCommit, spy, drawer, tabs,
+      };
+    },
+    template: `<div class="erd-root" :class="{ 'side-off': sideOff, gmode: mode === 'graph' }" style="display:flex;min-height:100vh;flex:1;">
+      <button type="button" id="menuBtn" aria-label="菜单" @click="drawer.toggleMenu()">☰</button>
+      <aside id="side" :class="{ open: menuOpen }">
+        <erd-toolbar :brand="brand" :mode="mode" :filter="filter" @update:filter="v => filter = v" @mode="setMode"></erd-toolbar>
+        <erd-nav :groups="navGroups" :empty="navEmpty" :current="current" :foot="foot" @select="onNav" @tip="showTableTip" @tip-hide="tip.hideSoon"></erd-nav>
+      </aside>
+      <div id="scrim" @click="drawer.closeMenu()"></div>
+      <main id="main" :class="{ gmode: mode === 'graph' }">
+        <erd-table-list v-show="mode === 'list'" :blocks="contentBlocks" :schema="data" :by-name="byName" :types="typesByName" @open-tab="openTab" @go-graph="goGraph" @ts-tip="showTsTip" @ts-hide="tip.hideSoon" @tip="showTableTip" @tip-hide="tip.hideSoon" @bind-el="spy.setEl"></erd-table-list>
+        <erd-graph v-show="mode === 'graph'" ref="graphRef" :view="view" :wide="wide" @open-tab="openTab" @open-list="onOpenList"></erd-graph>
+      </main>
+      <eih-side-pane :shown="hasTabs && wide" :width="paneWidth" kind="erd" @resize="onResize" @commit="onCommit">
+        <template #tabs>
+          <eih-tab-strip :tabs="tabList" :active="activeTab" :tab-class="tabClass" @select="tabs.select" @close="tabs.close">
+          </eih-tab-strip>
+        </template>
+        <erd-table-card v-if="activeTable" :table="activeTable" :schema="data" :by-name="byName" :types="typesByName" @open-tab="openTab" @go-graph="goGraph" @ts-tip="showTsTip" @ts-hide="tip.hideSoon" @tip="showTableTip" @tip-hide="tip.hideSoon"></erd-table-card>
+      </eih-side-pane>
+      <eih-tooltip :show="tipShow" :style-pos="tipStyle" :variant="tipVariant" :measure-ref="tip.bindBox" @enter="tip.cancel" @leave="tip.hideSoon">
+        <template v-if="tipTable">
+          <div class="tp-head"><span class="sq" :style="{ background: tipTable.color }"></span><b>{{ tipTable.name }}</b>
+            <span class="dom">{{ tipTable.kind === 'assoc' ? '关系表 · ' : tipTable.kind === 'weak' ? '弱实体 · ' : '' }}{{ tipTable.domain }}</span></div>
+          <div v-for="c in tipTable.columns" :key="c.name" class="tp-row">
+            <span class="tp-n">{{ c.name }}</span>
+            <span class="tp-t">{{ c.type + (c.ts ? '<' + c.ts + '>' : '') }}</span>
+            <span v-if="c.pk" class="b b-pk">PRIMARY KEY</span>
+            <span v-if="c.fk" class="b b-fk">FOREIGN KEY</span>
+            <span v-if="c.uq" class="b b-uq">UNIQUE</span>
+            <span v-if="c.nn && !c.pk" class="b b-nn">NOT NULL</span>
+          </div>
+          <div v-if="tipTable.comment" class="tp-foot">{{ tipTable.comment }}</div>
+        </template>
+        <template v-else-if="tipTs">
+          <div class="tp-head"><b>{{ tipTs.n }}</b><span class="dom">type</span></div>
+          <pre class="tp-ts"><span class="tk-kw">type</span> <span class="tk-type">{{ tipTs.n }}</span> <span class="tk-pun">=</span> <ts-highlight :source="tipTs.src" :types="typesByName"></ts-highlight></pre>
+        </template>
+      </eih-tooltip>
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/register-erd.js ---- */
+__eih["runtime/register-erd.js"] = (() => {
+/** ERD 页注册入口：只聚合显式注册，不在本文件定义组件。 */
+const t1 = __eih["runtime/components/ts-highlight.js"].tag;
+const d1 = __eih["runtime/components/ts-highlight.js"].define;
+const t2 = __eih["runtime/components/erd-col-row.js"].tag;
+const d2 = __eih["runtime/components/erd-col-row.js"].define;
+const t3 = __eih["runtime/components/erd-indexes.js"].tag;
+const d3 = __eih["runtime/components/erd-indexes.js"].define;
+const t4 = __eih["runtime/components/erd-types-block.js"].tag;
+const d4 = __eih["runtime/components/erd-types-block.js"].define;
+const t5 = __eih["runtime/components/erd-table-card.js"].tag;
+const d5 = __eih["runtime/components/erd-table-card.js"].define;
+const t6 = __eih["runtime/components/erd-nav.js"].tag;
+const d6 = __eih["runtime/components/erd-nav.js"].define;
+const t7 = __eih["runtime/components/erd-toolbar.js"].tag;
+const d7 = __eih["runtime/components/erd-toolbar.js"].define;
+const t8 = __eih["runtime/components/erd-table-list.js"].tag;
+const d8 = __eih["runtime/components/erd-table-list.js"].define;
+const t9 = __eih["runtime/components/eih-tab-strip.js"].tag;
+const d9 = __eih["runtime/components/eih-tab-strip.js"].define;
+const t10 = __eih["runtime/components/eih-side-pane.js"].tag;
+const d10 = __eih["runtime/components/eih-side-pane.js"].define;
+const t11 = __eih["runtime/components/eih-tooltip.js"].tag;
+const d11 = __eih["runtime/components/eih-tooltip.js"].define;
+const t12 = __eih["runtime/components/erd-graph-node.js"].tag;
+const d12 = __eih["runtime/components/erd-graph-node.js"].define;
+const t13 = __eih["runtime/components/erd-graph-edge.js"].tag;
+const d13 = __eih["runtime/components/erd-graph-edge.js"].define;
+const t14 = __eih["runtime/components/erd-graph-hull.js"].tag;
+const d14 = __eih["runtime/components/erd-graph-hull.js"].define;
+const t15 = __eih["runtime/components/erd-graph-legend.js"].tag;
+const d15 = __eih["runtime/components/erd-graph-legend.js"].define;
+const t16 = __eih["runtime/components/erd-graph-toolbar.js"].tag;
+const d16 = __eih["runtime/components/erd-graph-toolbar.js"].define;
+const t17 = __eih["runtime/components/erd-graph.js"].tag;
+const d17 = __eih["runtime/components/erd-graph.js"].define;
+const t18 = __eih["runtime/components/erd-explorer.js"].tag;
+const d18 = __eih["runtime/components/erd-explorer.js"].define;
+
+const ERD_COMPONENT_MODULES = [
+  [t1, d1], [t2, d2], [t3, d3], [t4, d4], [t5, d5], [t6, d6],
+  [t7, d7], [t8, d8], [t9, d9], [t10, d10], [t11, d11], [t12, d12],
+  [t13, d13], [t14, d14], [t15, d15], [t16, d16], [t17, d17], [t18, d18],
+];
+
+function registerErd(app, Vue) {
+  const registered = {};
+  for (const [tag, define] of ERD_COMPONENT_MODULES) {
+    const def = define(Vue);
+    app.component(tag, def);
+    registered[tag] = def;
+  }
+  return registered;
+}
+
+  return { ERD_COMPONENT_MODULES, registerErd };
+})();
+
+var registerApi = __eih["runtime/register-api.js"] && __eih["runtime/register-api.js"].registerApi;
+var registerErd = __eih["runtime/register-erd.js"] && __eih["runtime/register-erd.js"].registerErd;
+  const { createApp, ref, computed } = Vue;
+  const app = createApp({
+    setup() {
+      const schema = ref(DATA);
+      const ready = computed(() => !!schema.value);
+      return { schema, ready };
+    },
+    template: '<erd-explorer v-if="ready" :schema="schema"></erd-explorer>'
+  });
+  registerErd(app, Vue);
+  app.mount("#app");
+})();
+</script>
+</body>
+</html>

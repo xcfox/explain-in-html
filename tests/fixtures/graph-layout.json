@@ -1,0 +1,288 @@
+{
+  "schemaName": "TaskFlow",
+  "dark": false,
+  "nodes": [
+    {
+      "name": "users",
+      "kind": "entity",
+      "domain": "用户与组织",
+      "dia": false,
+      "x": 0,
+      "y": -43,
+      "w": 128,
+      "h": 52
+    },
+    {
+      "name": "workspaces",
+      "kind": "entity",
+      "domain": "用户与组织",
+      "dia": false,
+      "x": 0,
+      "y": 43,
+      "w": 128,
+      "h": 52
+    },
+    {
+      "name": "projects",
+      "kind": "entity",
+      "domain": "项目",
+      "dia": false,
+      "x": 208,
+      "y": -191,
+      "w": 128,
+      "h": 52
+    },
+    {
+      "name": "sprints",
+      "kind": "entity",
+      "domain": "项目",
+      "dia": false,
+      "x": 208,
+      "y": -105,
+      "w": 128,
+      "h": 52
+    },
+    {
+      "name": "tasks",
+      "kind": "entity",
+      "domain": "任务",
+      "dia": false,
+      "x": 0,
+      "y": -191,
+      "w": 128,
+      "h": 52
+    },
+    {
+      "name": "comments",
+      "kind": "entity",
+      "domain": "协作",
+      "dia": false,
+      "x": -171.6,
+      "y": 191,
+      "w": 128,
+      "h": 52
+    },
+    {
+      "name": "attachments",
+      "kind": "entity",
+      "domain": "协作",
+      "dia": false,
+      "x": 170.45,
+      "y": 191,
+      "w": 130.3,
+      "h": 52
+    },
+    {
+      "name": "activity_logs",
+      "kind": "entity",
+      "domain": "协作",
+      "dia": false,
+      "x": -1.15,
+      "y": 191,
+      "w": 148.9,
+      "h": 52
+    },
+    {
+      "name": "tags",
+      "kind": "entity",
+      "domain": "标签",
+      "dia": false,
+      "x": -208,
+      "y": 0,
+      "w": 128,
+      "h": 52
+    }
+  ],
+  "edges": [
+    {
+      "id": "n:1:workspaces:owner_id:users:id",
+      "kind": "n:1",
+      "a": "workspaces",
+      "b": "users",
+      "purpose": "ref",
+      "via": null
+    },
+    {
+      "id": "nm:workspace_members:workspaces:users",
+      "kind": "n:m",
+      "a": "workspaces",
+      "b": "users",
+      "purpose": null,
+      "via": "workspace_members"
+    },
+    {
+      "id": "n:1:projects:workspace_id:workspaces:id",
+      "kind": "n:1",
+      "a": "projects",
+      "b": "workspaces",
+      "purpose": "owner",
+      "via": null
+    },
+    {
+      "id": "n:1:projects:lead_id:users:id",
+      "kind": "n:1",
+      "a": "projects",
+      "b": "users",
+      "purpose": "ref",
+      "via": null
+    },
+    {
+      "id": "n:1:sprints:project_id:projects:id",
+      "kind": "n:1",
+      "a": "sprints",
+      "b": "projects",
+      "purpose": "owner",
+      "via": null
+    },
+    {
+      "id": "n:1:tasks:project_id:projects:id",
+      "kind": "n:1",
+      "a": "tasks",
+      "b": "projects",
+      "purpose": "owner",
+      "via": null
+    },
+    {
+      "id": "n:1:tasks:sprint_id:sprints:id",
+      "kind": "n:1",
+      "a": "tasks",
+      "b": "sprints",
+      "purpose": "owner",
+      "via": null
+    },
+    {
+      "id": "self:tasks:parent_id:tasks:id",
+      "kind": "self",
+      "a": "tasks",
+      "b": "tasks",
+      "purpose": "self",
+      "via": null
+    },
+    {
+      "id": "n:1:tasks:created_by:users:id",
+      "kind": "n:1",
+      "a": "tasks",
+      "b": "users",
+      "purpose": "ref",
+      "via": null
+    },
+    {
+      "id": "nm:task_assignees:tasks:users",
+      "kind": "n:m",
+      "a": "tasks",
+      "b": "users",
+      "purpose": null,
+      "via": "task_assignees"
+    },
+    {
+      "id": "nm:task_tags:tasks:tags",
+      "kind": "n:m",
+      "a": "tasks",
+      "b": "tags",
+      "purpose": null,
+      "via": "task_tags"
+    },
+    {
+      "id": "n:1:comments:task_id:tasks:id",
+      "kind": "n:1",
+      "a": "comments",
+      "b": "tasks",
+      "purpose": "owner",
+      "via": null
+    },
+    {
+      "id": "n:1:comments:author_id:users:id",
+      "kind": "n:1",
+      "a": "comments",
+      "b": "users",
+      "purpose": "ref",
+      "via": null
+    },
+    {
+      "id": "self:comments:parent_id:comments:id",
+      "kind": "self",
+      "a": "comments",
+      "b": "comments",
+      "purpose": "self",
+      "via": null
+    },
+    {
+      "id": "n:1:attachments:task_id:tasks:id",
+      "kind": "n:1",
+      "a": "attachments",
+      "b": "tasks",
+      "purpose": "owner",
+      "via": null
+    },
+    {
+      "id": "n:1:attachments:uploader_id:users:id",
+      "kind": "n:1",
+      "a": "attachments",
+      "b": "users",
+      "purpose": "ref",
+      "via": null
+    },
+    {
+      "id": "n:1:activity_logs:workspace_id:workspaces:id",
+      "kind": "n:1",
+      "a": "activity_logs",
+      "b": "workspaces",
+      "purpose": "owner",
+      "via": null
+    },
+    {
+      "id": "n:1:activity_logs:actor_id:users:id",
+      "kind": "n:1",
+      "a": "activity_logs",
+      "b": "users",
+      "purpose": "ref",
+      "via": null
+    },
+    {
+      "id": "n:1:tags:workspace_id:workspaces:id",
+      "kind": "n:1",
+      "a": "tags",
+      "b": "workspaces",
+      "purpose": "owner",
+      "via": null
+    }
+  ],
+  "hulls": [
+    {
+      "name": "用户与组织",
+      "x": -78,
+      "y": -99,
+      "w": 156,
+      "h": 182
+    },
+    {
+      "name": "项目",
+      "x": 130,
+      "y": -247,
+      "w": 156,
+      "h": 182
+    },
+    {
+      "name": "任务",
+      "x": -78,
+      "y": -247,
+      "w": 156,
+      "h": 96
+    },
+    {
+      "name": "协作",
+      "x": -250,
+      "y": 135,
+      "w": 499,
+      "h": 96
+    },
+    {
+      "name": "标签",
+      "x": -286,
+      "y": -56,
+      "w": 156,
+      "h": 96
+    }
+  ],
+  "edgeCountVisible": 13
+}

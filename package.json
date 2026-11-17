@@ -1,0 +1,11 @@
+{
+  "name": "explain-in-html",
+  "private": true,
+  "type": "module",
+  "description": "Explain in HTML — Vue 3 单文件可视化技能。无 npm 依赖、无构建步骤；type:module 仅便于作者工具与测试用 Node 读取 ESM。",
+  "scripts": {
+    "test": "node --test tests/*.test.js",
+    "render-api": "node lib/render-api.js",
+    "render-erd": "node lib/render-erd.js"
+  }
+}
