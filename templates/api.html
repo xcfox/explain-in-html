@@ -1,0 +1,1627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TaskFlow API · GraphQL</title>
+<style>
+  :root {
+    color-scheme: light;
+    --bg: #f6f6f3; --panel: #ffffff;
+    --line: #e6e4dd; --line2: #efeee9;
+    --ink: #2c2c29; --ink2: #6f6f68; --ink3: #a6a69e;
+    --wash: #fbfaf8; --hover: #fbfaf8;
+    --target: #f6f3fc; --target-bar: #8a7bd8;
+    --focus: #c9c7bc; --chip-bd: #b8b6ac;
+    --shadow: 0 4px 24px rgba(40,40,35,.13);
+    --q-bg:#dcebf5; --q-fg:#2f6b9f;
+    --m-bg:#eadff5; --m-fg:#6d3fa3;
+    --s-bg:#e3efdd; --s-fg:#4f7d3a;
+    --k-object:#5f83b4; --k-input:#b08850; --k-enum:#5f9e83;
+    --k-interface:#9b7bb8; --k-union:#b87b7b; --k-scalar:#8a8a82;
+    --kc: var(--k-scalar); --kc-mix: 12%;
+    --tk-kw:#7e22ce; --tk-type:#0e7490; --tk-field:#2563a8;
+    --tk-str:#b45309; --tk-num:#b45309; --tk-com:#a6a69e;
+    --tk-dir:#b91c1c; --tk-pun:#6f6f68;
+    --r: 8px;
+    --mono: ui-monospace,"SF Mono","JetBrains Mono",Menlo,Consolas,monospace;
+    --sans: -apple-system,BlinkMacSystemFont,"SF Pro Text","Helvetica Neue","PingFang SC","Microsoft YaHei",sans-serif;
+  }
+  .k-object    { --kc: var(--k-object); }
+  .k-input     { --kc: var(--k-input); }
+  .k-enum      { --kc: var(--k-enum); }
+  .k-interface { --kc: var(--k-interface); }
+  .k-union     { --kc: var(--k-union); }
+  .k-scalar    { --kc: var(--k-scalar); }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html { scroll-behavior: smooth; }
+  body { background: var(--bg); color: var(--ink); font: 13px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+  a { color: inherit; text-decoration: none; }
+
+  #app { display: flex; min-height: 100vh; }
+  #main { flex: 1; min-width: 0; }
+
+  /* ── 顶栏 ─────────────────────────────── */
+  .topbar { position: sticky; top: 0; z-index: 12;
+    background: color-mix(in srgb, var(--bg) 90%, transparent);
+    backdrop-filter: blur(10px); border-bottom: 1px solid var(--line); }
+  .topbar-in { max-width: 960px; margin: 0 auto; padding: 10px 32px; display: flex; align-items: center; }
+  #search { width: 100%; max-width: 340px; border: 1px solid var(--line); background: var(--panel);
+    border-radius: 6px; padding: 6px 10px; font: 12px var(--sans); color: var(--ink); outline: none; }
+  #search:focus { border-color: var(--focus); }
+  #search::placeholder { color: var(--ink3); }
+
+  /* ── 操作列表 ──────────────────────────── */
+  .wrap { max-width: 960px; margin: 0 auto; padding: 8px 32px 90px; }
+  .dom-h { position: sticky; top: 49px; z-index: 6; background: var(--bg);
+    display: flex; align-items: baseline; gap: 8px; padding: 20px 2px 8px;
+    font-size: 11px; font-weight: 600; letter-spacing: .1em; color: var(--ink3);
+    cursor: pointer; user-select: none; }
+  .dom-h:hover { color: var(--ink2); }
+  .dom-h .caret { display: inline-flex; align-self: center; color: var(--ink2); }
+  .dom-h .caret svg { transition: transform .15s; transform: rotate(90deg); }
+  .dom.closed .dom-h .caret svg { transform: rotate(0deg); }
+  .dom.closed .dom-body { display: none; }
+  .dom-h .n { font-family: var(--mono); font-weight: 400; }
+
+  .op-row { display: flex; align-items: baseline; gap: 10px; padding: 9px 14px;
+    border-top: 1px solid var(--line2); scroll-margin-top: 66px; }
+  .op-row:first-child { border-top: 0; }
+  .op-row:hover { background: var(--hover); }
+  .op-row:target { background: var(--target); box-shadow: inset 3px 0 0 var(--target-bar); }
+  .op-row .chip-kind { flex: none; min-width: 64px; text-align: center; }
+  .op-row pre.sdl { flex: 1; min-width: 0; padding: 1px 0; border: 0; background: none; }
+
+  .chip-kind { font: 600 10px/1 var(--mono); letter-spacing: .8px; padding: 4px 8px; border-radius: 5px; }
+  .chip-kind.q { background: var(--q-bg); color: var(--q-fg); }
+  .chip-kind.m { background: var(--m-bg); color: var(--m-fg); }
+  .chip-kind.s { background: var(--s-bg); color: var(--s-fg); }
+  .chip-tk { font: 600 10px/1 var(--mono); letter-spacing: .5px; padding: 4px 8px; border-radius: 5px;
+    background: color-mix(in srgb, var(--kc) var(--kc-mix), transparent); color: var(--kc); }
+
+  pre.sdl { padding: 10px 14px 12px; font: 12.5px/1.7 var(--mono); overflow-x: auto;
+    white-space: pre; border-top: 1px solid var(--line2); background: var(--wash); }
+
+  /* ── 类型索引 / 组内展开 ────────────────── */
+  .t-sub { font-size: 11px; font-weight: 600; letter-spacing: .1em; color: var(--ink3);
+    display: flex; align-items: center; gap: 8px; padding: 16px 2px 8px; }
+  .t-sub .n { font-family: var(--mono); font-weight: 400; }
+  .tchips { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 8px; }
+  .tchip { display: flex; align-items: center; gap: 6px; border: 1px solid var(--line);
+    background: var(--panel); border-radius: 6px; padding: 4px 10px; font: 11.5px var(--mono); color: var(--ink2); }
+  .tchip:hover { border-color: var(--chip-bd); color: var(--ink); }
+  .tchip .dot, .tab .dot { width: 7px; height: 7px; border-radius: 2px; background: var(--kc); }
+  .t-exp { margin-top: 12px; scroll-margin-top: 66px; }
+  .t-exp .t-exp-h { display: flex; align-items: center; gap: 8px; padding: 10px 14px 8px; }
+  .t-exp .t-exp-name { font: 600 14px/1.3 var(--mono); }
+  .t-exp .t-desc { padding: 0 14px 8px; margin: 0; max-width: none; font-size: 12.5px; }
+  .list-empty { padding: 40px 0; color: var(--ink3); font-size: 12px; text-align: center; }
+
+  /* ── 右栏：tabs ────────────────────────── */
+  #pane { width: 560px; min-width: 320px; flex: none; background: var(--panel); border-left: 1px solid var(--line);
+    position: sticky; top: 0; height: 100vh; display: none; flex-direction: column; }
+  #pane.show { display: flex; }
+  #paneGrip { position: absolute; left: -3px; top: 0; bottom: 0; width: 7px; cursor: col-resize; z-index: 5; }
+  #paneGrip:hover, #paneGrip.on { background: color-mix(in srgb, var(--ink) 12%, transparent); }
+  #tabStrip { display: flex; overflow-x: auto; flex: none; border-bottom: 1px solid var(--line); background: var(--wash); }
+  #tabStrip::-webkit-scrollbar { height: 0; }
+  .tab { display: flex; align-items: center; gap: 7px; height: 37px; padding: 0 10px 0 12px;
+    border-right: 1px solid var(--line2); font: 12px var(--mono); color: var(--ink2);
+    cursor: pointer; white-space: nowrap; flex: none; }
+  .tab:hover { color: var(--ink); }
+  .tab.on { background: var(--panel); color: var(--ink); box-shadow: inset 0 -2px 0 var(--kc, #888); }
+  .tab .x { opacity: 0; font-size: 14px; line-height: 1; color: var(--ink3); padding: 1px 4px; border-radius: 4px; }
+  .tab:hover .x { opacity: 1; }
+  .tab .x:hover { color: var(--ink); background: var(--line2); }
+  #tabBody { flex: 1; overflow-y: auto; padding: 20px 18px 70px; }
+  #tabBody .t-name { font-size: 17px; }
+  #tabBody h2.sec { margin-top: 24px; }
+
+  /* ── 类型详情（右栏内容）────────────────── */
+  .head-chips { display: flex; align-items: center; gap: 6px; margin-bottom: 10px; }
+  .t-name { font: 600 22px/1.3 var(--mono); letter-spacing: .2px; }
+  .t-desc { margin-top: 6px; color: var(--ink2); font-size: 13px; max-width: 60ch; }
+  h2.sec { margin: 30px 0 8px; font-size: 11px; font-weight: 600; letter-spacing: .1em;
+    color: var(--ink3); display: flex; align-items: center; gap: 8px; }
+  h2.sec .n { font-family: var(--mono); font-weight: 400; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+  .card pre.sdl { border-top: 0; background: var(--panel); }
+  .card.t-exp pre.sdl { background: var(--wash); border-top: 1px solid var(--line2); }
+  .ref-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .ref-chip { font: 11.5px var(--mono); border: 1px solid var(--line); background: var(--panel);
+    border-radius: 6px; padding: 3px 9px; }
+  .ref-chip:hover { border-color: var(--chip-bd); background: var(--hover); }
+  .ref-chip .k { font-family: var(--sans); font-size: 9.5px; color: var(--ink3); margin-left: 5px; }
+  .use-row { display: flex; align-items: center; gap: 8px; padding: 7px 14px; border-top: 1px solid var(--line2); }
+  .use-row:first-child { border-top: 0; }
+  .use-row:hover { background: var(--hover); }
+  .use-row .nm { font: 12.5px var(--mono); }
+  .use-row .ds { margin-left: auto; font-size: 11.5px; color: var(--ink3); }
+  .use-row .qm { font: 600 9px/1 var(--mono); padding: 2.5px 5px; border-radius: 4px; }
+  .use-row .qm.q { background: var(--q-bg); color: var(--q-fg); }
+  .use-row .qm.m { background: var(--m-bg); color: var(--m-fg); }
+  .use-row .qm.s { background: var(--s-bg); color: var(--s-fg); }
+
+  /* ── 悬停预览 tooltip ───────────────────── */
+  #tip { position: fixed; z-index: 60; display: none; max-width: 360px; background: var(--panel);
+    border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px;
+    box-shadow: var(--shadow); pointer-events: none; font-size: 12px; }
+  .tp-head { display: flex; align-items: center; gap: 7px; margin-bottom: 6px; }
+  .tp-head b { font: 600 12.5px var(--mono); }
+  .tp-head .dom { margin-left: auto; color: var(--ink3); font-size: 10.5px; }
+  .tp-sdl { font: 11px/1.6 var(--mono); white-space: pre; overflow: hidden; }
+  .tp-foot { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--line2); color: var(--ink2); font-size: 11px; }
+
+  /* GraphQL 语法高亮 */
+  .tk-kw    { color: var(--tk-kw); }
+  .tk-type  { color: var(--tk-type); }
+  a.tk-type:hover { text-decoration: underline; }
+  .tk-field { color: var(--tk-field); }
+  .tk-str   { color: var(--tk-str); }
+  .tk-num   { color: var(--tk-num); }
+  .tk-com   { color: var(--tk-com); font-style: italic; }
+  .tk-dir   { color: var(--tk-dir); }
+  .tk-pun   { color: var(--tk-pun); }
+
+  /* ── 暗色（跟随系统）───────────────────── */
+  @media (prefers-color-scheme: dark) {
+    :root {
+      color-scheme: dark;
+      --bg: #1a1a17; --panel: #242421;
+      --line: #3a3a36; --line2: #2c2c29;
+      --ink: #e3e1d8; --ink2: #a09e95; --ink3: #716f66;
+      --wash: #1f1f1d; --hover: #2a2a26;
+      --target: #2a2433; --target-bar: #9b8ad4;
+      --focus: #4c4b44; --chip-bd: #55534a;
+      --shadow: 0 4px 24px rgba(0,0,0,.5);
+      --q-bg:#1f3a4d; --q-fg:#79b4d8;
+      --m-bg:#332642; --m-fg:#c39ade;
+      --s-bg:#2a4225; --s-fg:#8cc478;
+      --k-object:#7fa5d6; --k-input:#d2a464; --k-enum:#7dc2a4;
+      --k-interface:#bd9cd8; --k-union:#d69c9c; --k-scalar:#a8a89e;
+      --kc-mix: 22%;
+      --tk-kw:#bb8de0; --tk-type:#6db8c9; --tk-field:#7ea6d8;
+      --tk-str:#cf9a60; --tk-num:#cf9a60; --tk-com:#6d6b62;
+      --tk-dir:#e07a7a; --tk-pun:#8a887e;
+    }
+  }
+
+
+  /* 窄屏详情覆盖层：不挤占主栏，避免 375px 视口只剩约 55px 正文 */
+  .api-scrim { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 25; }
+  .api-root.is-overlay .api-scrim.is-on { display: block; }
+  .api-root.is-overlay #pane.show {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 30;
+    max-width: calc(100vw - 24px); min-width: 0;
+    box-shadow: var(--shadow);
+  }
+
+  /* ── 窄屏 ─────────────────────────────── */
+  @media (max-width: 640px) {
+    .topbar-in { padding: 10px 18px; }
+    .wrap { padding: 4px 18px 70px; }
+    .dom-h { top: 47px; }
+    .op-row { padding: 8px 12px; }
+    .op-row .chip-kind { min-width: 0; }
+  }
+
+  #app { display: flex; min-height: 100vh; }
+  .api-root, .erd-root { width: 100%; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<!--
+  Vue 3 完整生产 CDN，精确版本 3.5.13。
+  本页是单文件交付：样式与组件库已内联，不依赖同目录其它文件，无需 npm / Node / Bun 即可打开。运行时依赖固定 Vue 3.5.13 生产 CDN（https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js，完整构建 vue.global.prod.js，含模板编译器），需要联网，不是离线自包含。用 file:// 打开时，只要浏览器允许加载 HTTPS 脚本即可；CDN 被拦截或完全离线时页面无法启动。
+-->
+<script src="https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js"></script>
+<script>
+/* ════════════════════════════════════════════════════════════════════════
+   数据区 —— 替换此对象即可复用本页。也可用可选作者工具：
+   node lib/render-api.js <schema.graphql> -o <out.html>
+   边界标记见 SKILL.md「无 Node/Bun 时」；JSON 中的 "<" 必须写成 \u003c。
+   ════════════════════════════════════════════════════════════════════════ */
+/* ===EXPLAIN-IN-HTML-DATA:API:START=== */
+const API = {"operations":[{"kind":"query","domain":"用户与组织","name":"me","description":"当前登录用户及其工作区成员关系。","args":[],"returns":"User!"},{"kind":"query","domain":"用户与组织","name":"workspace","description":"按 slug 获取工作区详情。","args":[{"name":"slug","type":"String!","desc":"工作区 URL 短标识"}],"returns":"Workspace"},{"kind":"query","domain":"项目","name":"project","description":"按 ID 获取项目，含迭代列表。","args":[{"name":"id","type":"ID!","desc":"项目 ID"}],"returns":"Project"},{"kind":"query","domain":"项目","name":"projects","description":"工作区下的项目列表。","args":[{"name":"workspaceId","type":"ID!","desc":"所属工作区"},{"name":"includeArchived","type":"Boolean","def":"false","desc":"是否包含已归档"}],"returns":"[Project!]!"},{"kind":"query","domain":"任务","name":"task","description":"任务详情，含子任务、指派人、标签。","args":[{"name":"id","type":"ID!","desc":"任务 ID"}],"returns":"Task"},{"kind":"query","domain":"任务","name":"tasks","description":"项目内任务的分页查询，支持状态/指派人/标签过滤。","args":[{"name":"projectId","type":"ID!","desc":"所属项目"},{"name":"filter","type":"TaskFilter","desc":"过滤条件"},{"name":"page","type":"PageInput","desc":"游标分页"}],"returns":"TaskPage!","returnsDesc":"分页结果"},{"kind":"query","domain":"搜索","name":"search","description":"跨任务 / 项目 / 评论的全文搜索。","args":[{"name":"text","type":"String!","desc":"关键词"},{"name":"first","type":"Int","def":"20","desc":"返回数量上限"}],"returns":"[SearchResult!]!"},{"kind":"mutation","domain":"任务","name":"createTask","description":"创建任务，可同时指定指派人、标签与父任务。","args":[{"name":"input","type":"CreateTaskInput!","desc":"创建参数"}],"returns":"Task!","returnsDesc":"新建的任务"},{"kind":"mutation","domain":"任务","name":"updateTask","description":"更新任务标题、详情、优先级、截止日期。","args":[{"name":"input","type":"UpdateTaskInput!","desc":"更新参数"}],"returns":"Task!"},{"kind":"mutation","domain":"任务","name":"setTaskStatus","description":"流转任务状态（看板拖拽走此接口）。","args":[{"name":"taskId","type":"ID!","desc":"任务 ID"},{"name":"status","type":"TaskStatus!","desc":"目标状态"}],"returns":"Task!"},{"kind":"mutation","domain":"任务","name":"assignTask","description":"替换任务的指派人集合。","args":[{"name":"taskId","type":"ID!","desc":"任务 ID"},{"name":"userIds","type":"[ID!]!","desc":"指派人 ID 列表（全量替换）"}],"returns":"Task!"},{"kind":"mutation","domain":"协作","name":"addComment","description":"在任务下发表评论或回复。","args":[{"name":"input","type":"AddCommentInput!","desc":"评论参数"}],"returns":"Comment!"},{"kind":"mutation","domain":"标签","name":"createTag","description":"在工作区内新建标签。","args":[{"name":"workspaceId","type":"ID!","desc":"所属工作区"},{"name":"name","type":"String!","desc":"标签名"},{"name":"color","type":"String","desc":"颜色 #hex"}],"returns":"Tag!"},{"kind":"mutation","domain":"标签","name":"attachTag","description":"把标签挂到任务上（幂等）。","args":[{"name":"taskId","type":"ID!","desc":"任务 ID"},{"name":"tagId","type":"ID!","desc":"标签 ID"}],"returns":"Task!"}],"types":{"DateTime":{"kind":"scalar","description":"ISO-8601 时间戳","sdl":"scalar DateTime"},"Date":{"kind":"scalar","description":"ISO-8601 日期","sdl":"scalar Date"},"Node":{"kind":"interface","description":"所有带 ID 的对象","sdl":"interface Node {\n  id: ID!\n}"},"User":{"kind":"object","description":"平台用户","sdl":"type User implements Node {\n  id: ID!\n  email: String!\n  name: String!\n  avatarUrl: String\n  timezone: String!\n  memberships: [WorkspaceMember!]!\n  createdAt: DateTime!\n}"},"Workspace":{"kind":"object","description":"工作区（租户边界）","sdl":"type Workspace implements Node {\n  id: ID!\n  slug: String!\n  name: String!\n  plan: Plan!\n  owner: User!\n  members(first: Int = 20): [WorkspaceMember!]!\n  projects(includeArchived: Boolean = false): [Project!]!\n  tags: [Tag!]!\n  createdAt: DateTime!\n}"},"WorkspaceMember":{"kind":"object","description":"工作区成员关系","sdl":"type WorkspaceMember {\n  user: User!\n  role: Role!\n  joinedAt: DateTime!\n}"},"Plan":{"kind":"enum","description":"工作区套餐","sdl":"enum Plan {\n  FREE\n  PRO\n  ENTERPRISE\n}"},"Role":{"kind":"enum","description":"成员角色","sdl":"enum Role {\n  OWNER\n  ADMIN\n  MEMBER\n}"},"Project":{"kind":"object","description":"项目","sdl":"type Project implements Node {\n  id: ID!\n  key: String!\n  name: String!\n  color: String\n  status: ProjectStatus!\n  lead: User\n  workspace: Workspace!\n  sprints: [Sprint!]!\n  archivedAt: DateTime\n  createdAt: DateTime!\n}"},"ProjectStatus":{"kind":"enum","description":"项目状态","sdl":"enum ProjectStatus {\n  ACTIVE\n  ARCHIVED\n}"},"Sprint":{"kind":"object","description":"迭代 / 冲刺","sdl":"type Sprint implements Node {\n  id: ID!\n  name: String!\n  goal: String\n  startsOn: Date\n  endsOn: Date\n  status: SprintStatus!\n}"},"SprintStatus":{"kind":"enum","description":"迭代状态","sdl":"enum SprintStatus {\n  PLANNED\n  ACTIVE\n  CLOSED\n}"},"Task":{"kind":"object","description":"任务","sdl":"type Task implements Node {\n  id: ID!\n  title: String!\n  description: String\n  status: TaskStatus!\n  priority: Priority!\n  position: Float!\n  dueDate: Date\n  project: Project!\n  sprint: Sprint\n  parent: Task\n  subtasks: [Task!]!\n  assignees: [User!]!\n  tags: [Tag!]!\n  comments(first: Int = 20): [Comment!]!\n  attachments: [Attachment!]!\n  createdBy: User!\n  createdAt: DateTime!\n  updatedAt: DateTime!\n}"},"TaskStatus":{"kind":"enum","description":"任务状态","sdl":"enum TaskStatus {\n  TODO\n  IN_PROGRESS\n  DONE\n}"},"Priority":{"kind":"enum","description":"优先级","sdl":"enum Priority {\n  LOW\n  MEDIUM\n  HIGH\n  URGENT\n}"},"Tag":{"kind":"object","description":"任务标签","sdl":"type Tag implements Node {\n  id: ID!\n  name: String!\n  color: String\n}"},"Comment":{"kind":"object","description":"评论","sdl":"type Comment implements Node {\n  id: ID!\n  body: String!\n  author: User!\n  parent: Comment\n  createdAt: DateTime!\n  editedAt: DateTime\n}"},"Attachment":{"kind":"object","description":"附件","sdl":"type Attachment implements Node {\n  id: ID!\n  fileName: String!\n  mimeType: String\n  sizeBytes: Int!\n  url: String!\n  uploader: User!\n  createdAt: DateTime!\n}"},"TaskPage":{"kind":"object","description":"任务分页结果","sdl":"type TaskPage {\n  items: [Task!]!\n  pageInfo: PageInfo!\n  totalCount: Int!\n}"},"PageInfo":{"kind":"object","description":"游标分页信息","sdl":"type PageInfo {\n  hasNextPage: Boolean!\n  endCursor: String\n}"},"PageInput":{"kind":"input","description":"游标分页入参","sdl":"input PageInput {\n  first: Int = 20\n  after: String\n}"},"TaskFilter":{"kind":"input","description":"任务过滤条件","sdl":"input TaskFilter {\n  status: [TaskStatus!]\n  assigneeId: ID\n  tagId: ID\n  dueBefore: Date\n  search: String\n}"},"CreateTaskInput":{"kind":"input","description":"创建任务入参","sdl":"input CreateTaskInput {\n  projectId: ID!\n  title: String!\n  description: String\n  sprintId: ID\n  parentId: ID\n  priority: Priority = MEDIUM\n  dueDate: Date\n  assigneeIds: [ID!]\n  tagIds: [ID!]\n}"},"UpdateTaskInput":{"kind":"input","description":"更新任务入参","sdl":"input UpdateTaskInput {\n  taskId: ID!\n  title: String\n  description: String\n  priority: Priority\n  dueDate: Date\n}"},"AddCommentInput":{"kind":"input","description":"发表评论入参","sdl":"input AddCommentInput {\n  taskId: ID!\n  body: String!\n  parentId: ID\n}"},"SearchResult":{"kind":"union","description":"搜索结果（多态）","sdl":"union SearchResult = Task | Project | Comment"}},"name":"TaskFlow API"};
+/* ===EXPLAIN-IN-HTML-DATA:API:END=== */
+
+(function boot() {
+  if (typeof Vue === "undefined") {
+    document.getElementById("app").textContent = "无法加载 Vue 3.5.13 生产 CDN（https://cdn.jsdelivr.net/npm/vue@3.5.13/dist/vue.global.prod.js）。本页需要联网；file:// 下只要浏览器允许请求 HTTPS 脚本即可。最终 HTML 是单文件交付，无需 npm/Node/Bun，但运行依赖 Vue CDN，不是离线自包含。";
+    return;
+  }
+  /* 组件库仅在 Vue 可用之后求值，避免 CDN 失败时顶层引用 Vue 导致本提示无法执行。 */
+var __eih = Object.create(null);
+
+/* ---- core/highlight.js ---- */
+__eih["core/highlight.js"] = (() => {
+// 把 SDL / TS 源切成 token，供模板 v-for 渲染（避免把源码当 HTML 插入）。
+
+const GQL_BUILTIN = new Set(["ID", "String", "Int", "Float", "Boolean"]);
+const GQL_KW = new Set([
+  "type", "interface", "enum", "input", "union", "scalar", "schema", "implements",
+  "extend", "query", "mutation", "subscription", "fragment", "on", "directive",
+  "repeatable", "true", "false", "null",
+]);
+const TS_KW = new Set([
+  "type", "interface", "extends", "keyof", "typeof", "readonly", "in", "as", "const",
+  "string", "number", "boolean", "unknown", "any", "void", "null", "undefined",
+  "never", "true", "false",
+]);
+
+function tokenizeSDL(src, types = {}) {
+  const re = /(#[^\n]*)|("""[\s\S]*?"""|"(?:[^"\\]|\\.)*")|(@[A-Za-z_][A-Za-z0-9_]*)|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][A-Za-z0-9_]*)|([\s\S])/g;
+  const out = [];
+  let m;
+  while ((m = re.exec(src || ""))) {
+    const [tok, com, str, dir, num, word] = m;
+    if (com) out.push({ text: tok, cls: "tk-com" });
+    else if (str) out.push({ text: tok, cls: "tk-str" });
+    else if (dir) out.push({ text: tok, cls: "tk-dir" });
+    else if (num) out.push({ text: tok, cls: "tk-num" });
+    else if (word) {
+      if (GQL_KW.has(word)) out.push({ text: tok, cls: "tk-kw" });
+      else if (/^[A-Z]/.test(word)) {
+        if (types[word] && !GQL_BUILTIN.has(word)) {
+          out.push({ text: tok, cls: "tk-type", href: `#type-${word}`, name: word });
+        } else {
+          out.push({ text: tok, cls: "tk-type" });
+        }
+      } else out.push({ text: tok, cls: "tk-field" });
+    } else if (/\s/.test(tok)) out.push({ text: tok, cls: "" });
+    else out.push({ text: tok, cls: "tk-pun" });
+  }
+  return out;
+}
+
+function tokenizeTS(src, typesByName = {}) {
+  const re = /(\/\/[^\n]*|\/\*[\s\S]*?\*\/)|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")|(\b\d+(?:\.\d+)?\b)|([A-Za-z_$][A-Za-z0-9_$]*)|([\s\S])/g;
+  const out = [];
+  let m;
+  while ((m = re.exec(src || ""))) {
+    const [tok, com, str, num, word] = m;
+    if (com) out.push({ text: tok, cls: "tk-com" });
+    else if (str) out.push({ text: tok, cls: "tk-str" });
+    else if (num) out.push({ text: tok, cls: "tk-num" });
+    else if (word) {
+      if (TS_KW.has(word)) out.push({ text: tok, cls: "tk-kw" });
+      else if (typesByName[word]) out.push({ text: tok, cls: "tk-type", ts: word });
+      else if (/^[A-Z]/.test(word)) out.push({ text: tok, cls: "tk-type" });
+      else out.push({ text: tok, cls: "tk-field" });
+    } else if (/\s/.test(tok)) out.push({ text: tok, cls: "" });
+    else out.push({ text: tok, cls: "tk-pun" });
+  }
+  return out;
+}
+
+function namesIn(s) {
+  return (String(s || "").match(/[A-Z][A-Za-z0-9_]*/g) || []).filter(w => !GQL_BUILTIN.has(w));
+}
+
+  return { GQL_BUILTIN, GQL_KW, TS_KW, tokenizeSDL, tokenizeTS, namesIn };
+})();
+
+
+/* ---- core/api-view.js ---- */
+__eih["core/api-view.js"] = (() => {
+const namesIn = __eih["core/highlight.js"].namesIn;
+
+const KIND_LABEL = {
+  object: "type", input: "input", enum: "enum",
+  interface: "interface", union: "union", scalar: "scalar",
+};
+
+function kindClass(k) {
+  return KIND_LABEL[k] ? ` k-${k}` : "";
+}
+
+function refsOf(types, tn) {
+  const t = types[tn];
+  return t ? [...new Set(namesIn(t.sdl).filter(x => x !== tn))] : [];
+}
+
+function usedBy(ops, tn) {
+  return (ops || []).filter(o =>
+    namesIn(o.returns).includes(tn) || (o.args || []).some(a => namesIn(a.type).includes(tn))
+  );
+}
+
+function namesFromOp(types, o) {
+  return [...new Set([
+    ...namesIn(o.returns),
+    ...(o.args || []).flatMap(a => namesIn(a.type)),
+  ])].filter(n => types[n]);
+}
+
+function buildTypeGraph(types) {
+  const implOf = {};
+  for (const n of Object.keys(types || {})) {
+    const m = (types[n].sdl || "").match(/\bimplements\s+([A-Za-z_][\w\s&]*)/);
+    if (!m) continue;
+    for (const iface of m[1].split(/\s*&\s*/).map(s => s.trim()).filter(s => types[s])) {
+      (implOf[iface] ||= []).push(n);
+    }
+  }
+  const kidsOf = tn => [...new Set([...refsOf(types, tn), ...(implOf[tn] || [])])];
+  const parentOf = {};
+  for (const p of Object.keys(types || {})) {
+    for (const c of kidsOf(p)) (parentOf[c] ||= []).push(p);
+  }
+  return { implOf, parentOf };
+}
+
+function sigText(o) {
+  const clean = s => (s || "").replace(/\s+/g, " ").trim();
+  const desc = clean(o.description), ret = clean(o.returnsDesc);
+  const args = o.args || [];
+  const tail = "# " + desc + (ret ? ` → ${ret}` : "");
+  const flat = `${o.name}${args.length ? "(" +
+    args.map(a => `${a.name}: ${a.type}${a.def !== undefined ? " = " + a.def : ""}`).join(", ") +
+    ")" : ""}: ${o.returns}`;
+  if (!args.some(a => a.desc) && flat.length + tail.length <= 100) {
+    return desc || ret ? flat + "  " + tail : flat;
+  }
+  const lines = args.map(a => {
+    let s = `  ${a.name}: ${a.type}`; if (a.def !== undefined) s += ` = ${a.def}`;
+    return { s, c: clean(a.desc) };
+  });
+  const w = Math.max(0, ...lines.map(l => l.s.length));
+  return `${o.name}(` + (desc ? "  # " + desc : "") + "\n" +
+    lines.map(l => l.s + (l.c ? " ".repeat(w - l.s.length + 2) + "# " + l.c : "")).join("\n") +
+    `\n): ${o.returns}` + (ret ? "  # → " + ret : "");
+}
+
+function groupOperations(ops) {
+  const groups = [], seen = {};
+  for (const o of ops || []) {
+    const d = o.domain || "api";
+    if (!seen[d]) { seen[d] = { name: d, ops: [], types: [] }; groups.push(seen[d]); }
+    seen[d].ops.push(o);
+  }
+  return { groups, seen };
+}
+
+function assignTypeHomes(types, ops, groups, seen) {
+  const typeNames = Object.keys(types || {}).sort();
+  const { parentOf } = buildTypeGraph(types);
+  const home = {};
+  for (const n of typeNames) {
+    if (types[n].domain && seen[types[n].domain]) home[n] = types[n].domain;
+  }
+  const direct = {};
+  for (const o of ops || []) {
+    for (const n of namesFromOp(types, o)) {
+      if (home[n]) continue;
+      (direct[n] ||= {});
+      direct[n][o.domain] = (direct[n][o.domain] || 0) + 1;
+    }
+  }
+  const pick = counts => {
+    let best = null, bestN = -1;
+    for (const g of groups) {
+      const c = counts[g.name] || 0;
+      if (c > bestN) { best = g.name; bestN = c; }
+    }
+    return bestN > 0 ? best : null;
+  };
+  for (const n of Object.keys(direct)) if (!home[n]) home[n] = pick(direct[n]);
+  for (let i = 0; i < 32; i++) {
+    let changed = false;
+    for (const n of typeNames) {
+      if (home[n]) continue;
+      const scores = {};
+      for (const p of (parentOf[n] || [])) {
+        if (home[p]) scores[home[p]] = (scores[home[p]] || 0) + 1;
+      }
+      const domains = Object.keys(scores);
+      if (!domains.length) continue;
+      if (domains.length > 1 && (types[n].kind === "scalar" || types[n].kind === "interface")) continue;
+      home[n] = pick(scores);
+      changed = true;
+    }
+    if (!changed) break;
+  }
+  return home;
+}
+
+function retTypesOf(types, ops) {
+  const seen = new Set(), out = [];
+  for (const o of ops || []) {
+    for (const n of namesIn(o.returns)) {
+      if (types[n] && !seen.has(n)) { seen.add(n); out.push(n); }
+    }
+  }
+  return out;
+}
+
+function partitionByKind(types, names) {
+  const typ = [], inputs = [];
+  for (const n of names) ((types[n] && types[n].kind === "input") ? inputs : typ).push(n);
+  return { types: typ, inputs };
+}
+
+function opMatches(types, o, filter) {
+  const f = (filter || "").trim().toLowerCase();
+  if (!f) return true;
+  return o.name.toLowerCase().includes(f)
+    || (o.description || "").toLowerCase().includes(f)
+    || namesFromOp(types, o).some(n => n.toLowerCase().includes(f));
+}
+
+function typeMatches(types, n, filter) {
+  const f = (filter || "").trim().toLowerCase();
+  if (!f) return true;
+  const t = types[n] || {};
+  return n.toLowerCase().includes(f) || (t.description || "").toLowerCase().includes(f);
+}
+
+function buildApiView(api) {
+  const types = api.types || {};
+  const ops = api.operations || [];
+  const { groups, seen } = groupOperations(ops);
+  const typeHome = assignTypeHomes(types, ops, groups, seen);
+  const typeNames = Object.keys(types).sort();
+  for (const n of typeNames) {
+    const d = typeHome[n];
+    if (d && seen[d]) seen[d].types.push(n);
+  }
+  const sharedTypes = typeNames.filter(n => !typeHome[n]);
+  return { types, ops, groups, typeHome, sharedTypes };
+}
+
+function buildApiSections(view, filter, collapsed) {
+  const { types, ops, groups, sharedTypes } = view;
+  const f = filter || "";
+  const forceOpen = !!String(f).trim();
+  const out = [];
+  const seenId = new Set();
+  for (const g of groups) {
+    const gops = g.ops.filter(o => opMatches(types, o, f));
+    const rets = retTypesOf(types, gops).filter(n => typeMatches(types, n, f) || gops.length);
+    const rest = g.types.filter(n => typeMatches(types, n, f) && !rets.includes(n));
+    if (!gops.length && !rets.length && !rest.length) continue;
+    const exp = [];
+    for (const n of rets) {
+      const withId = !seenId.has(n);
+      if (withId) seenId.add(n);
+      exp.push({ name: n, withId });
+    }
+    const parts = partitionByKind(types, rest);
+    out.push({
+      key: g.name, title: g.name,
+      count: gops.length + rets.length + rest.length,
+      closed: !forceOpen && !!(collapsed && collapsed[g.name]),
+      ops: gops, expands: exp, restTypes: parts.types, restInputs: parts.inputs,
+    });
+  }
+  const shared = (sharedTypes || []).filter(n => typeMatches(types, n, f));
+  if (shared.length) {
+    const parts = partitionByKind(types, shared);
+    out.push({
+      key: "__shared__", title: "类型", count: shared.length,
+      closed: !forceOpen && !!(collapsed && collapsed["__shared__"]),
+      ops: [], expands: [], restTypes: parts.types, restInputs: parts.inputs,
+    });
+  }
+  return out;
+}
+
+function tipSdlPreview(t, maxLines = 9) {
+  if (!t) return { sdl: "", kind: "", cls: "" };
+  const lines = (t.sdl || "").split("\n");
+  const sdl = lines.length > maxLines ? lines.slice(0, maxLines).join("\n") + "\n  …" : t.sdl;
+  return {
+    sdl,
+    kind: (KIND_LABEL[t.kind] || t.kind || "").toUpperCase(),
+    cls: "chip-tk" + kindClass(t.kind),
+    description: t.description || "",
+  };
+}
+
+  return { KIND_LABEL, kindClass, refsOf, usedBy, namesFromOp, buildTypeGraph, sigText, groupOperations, assignTypeHomes, retTypesOf, partitionByKind, opMatches, typeMatches, buildApiView, buildApiSections, tipSdlPreview };
+})();
+
+
+/* ---- core/chrome.js ---- */
+__eih["core/chrome.js"] = (() => {
+/** 分栏阈值（与原 design-viz 一致）。纯函数，不读 DOM。 */
+
+const ERD_PANE_MIN_VW = 720;
+const ERD_SIDE_W = 264;
+const ERD_MAIN_MIN = 480;
+const ERD_SIDE_PHONE = 920;
+const ERD_PANE_MIN = 260;
+const ERD_PANE_MAX = 900;
+const API_PANE_MIN = 320;
+const API_MAIN_MIN = 400;
+
+function isWide(width, minVw = ERD_PANE_MIN_VW) {
+  return Number(width) >= minVw;
+}
+
+function shouldHideSide({ width, paneOn, paneW }) {
+  const w = Number(width) || 0;
+  const phone = w <= ERD_SIDE_PHONE;
+  const threeFits = w >= ERD_SIDE_W + (paneOn ? Number(paneW) || 0 : 0) + ERD_MAIN_MIN;
+  return phone || (paneOn && !threeFits);
+}
+
+function clampErdPane(width, { viewport, hideSideFlag }) {
+  const vw = Number(viewport) || 1200;
+  const floor = hideSideFlag ? ERD_MAIN_MIN : ERD_SIDE_W + ERD_MAIN_MIN;
+  const maxPane = Math.min(ERD_PANE_MAX, vw * 0.62, Math.max(ERD_PANE_MIN, vw - floor));
+  return Math.min(Math.max(Number(width) || ERD_PANE_MIN, ERD_PANE_MIN), maxPane);
+}
+
+/** 视口不足以同时放下最小详情栏与最小主栏时，详情改为覆盖层，避免主栏被挤到不可用宽度。 */
+function isApiOverlay(width) {
+  return Number(width) < API_PANE_MIN + API_MAIN_MIN;
+}
+
+function clampApiPane(width, viewport, { overlay } = {}) {
+  const vw = Number(viewport) || 1200;
+  const useOverlay = overlay == null ? isApiOverlay(vw) : !!overlay;
+  if (useOverlay) {
+    const max = Math.max(200, vw - 24);
+    const min = Math.min(API_PANE_MIN, max);
+    return Math.min(Math.max(Number(width) || min, min), max);
+  }
+  const max = Math.max(API_PANE_MIN, vw - API_MAIN_MIN);
+  return Math.min(Math.max(Number(width) || API_PANE_MIN, API_PANE_MIN), max);
+}
+
+function defaultErdPane(viewport) {
+  const vw = Number(viewport) || 1200;
+  return Math.min(Math.max(vw * 0.3, 280), 400);
+}
+
+function defaultApiPane(viewport) {
+  const vw = Number(viewport) || 1200;
+  return Math.min(560, Math.round(vw * 0.45));
+}
+
+  return { ERD_PANE_MIN_VW, ERD_SIDE_W, ERD_MAIN_MIN, ERD_SIDE_PHONE, ERD_PANE_MIN, ERD_PANE_MAX, API_PANE_MIN, API_MAIN_MIN, isWide, shouldHideSide, clampErdPane, isApiOverlay, clampApiPane, defaultErdPane, defaultApiPane };
+})();
+
+
+/* ---- core/storage.js ---- */
+__eih["core/storage.js"] = (() => {
+/** 持久化读写：接受 storage 对象（window.localStorage 或测试用 Map 适配器），不直接碰 DOM。 */
+
+const ERD_PANE_KEY = "erd-pane-w";
+const API_PANE_KEY = "api-pane-w";
+const API_COLLAPSE_KEY = "api-dom-collapsed";
+function erdPosKey(schemaName) {
+  return "erd-pos-v2-" + (schemaName || "schema");
+}
+
+function memoryStorage() {
+  const m = new Map();
+  return {
+    getItem: k => (m.has(k) ? m.get(k) : null),
+    setItem: (k, v) => { m.set(k, String(v)); },
+    removeItem: k => { m.delete(k); },
+  };
+}
+
+function getStorage() {
+  try {
+    if (typeof localStorage !== "undefined") return localStorage;
+  } catch { /* 隐私模式 */ }
+  return memoryStorage();
+}
+
+function readJSON(storage, key, fallback) {
+  if (!storage) return fallback;
+  try {
+    const raw = storage.getItem(key);
+    if (raw == null || raw === "") return fallback;
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
+
+function writeJSON(storage, key, val) {
+  if (!storage) return false;
+  try {
+    storage.setItem(key, JSON.stringify(val));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readNumber(storage, key, fallback) {
+  if (!storage) return fallback;
+  try {
+    const n = parseInt(storage.getItem(key), 10);
+    return Number.isFinite(n) ? n : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeText(storage, key, val) {
+  if (!storage) return false;
+  try {
+    storage.setItem(key, String(val));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function removeKey(storage, key) {
+  if (!storage) return;
+  try { storage.removeItem(key); } catch { /* ignore */ }
+}
+
+function loadPositions(storage, schemaName) {
+  const o = readJSON(storage, erdPosKey(schemaName), {}) || {};
+  const out = {};
+  for (const k of Object.keys(o)) {
+    const p = o[k];
+    if (p && Number.isFinite(p.x) && Number.isFinite(p.y)) out[k] = { x: p.x, y: p.y };
+  }
+  return out;
+}
+
+function savePositions(storage, schemaName, nodes) {
+  const o = {};
+  for (const n of nodes || []) o[n.name] = { x: Math.round(n.x), y: Math.round(n.y) };
+  return writeJSON(storage, erdPosKey(schemaName), o);
+}
+
+function clearPositions(storage, schemaName) {
+  removeKey(storage, erdPosKey(schemaName));
+}
+
+  return { ERD_PANE_KEY, API_PANE_KEY, API_COLLAPSE_KEY, erdPosKey, memoryStorage, getStorage, readJSON, writeJSON, readNumber, writeText, removeKey, loadPositions, savePositions, clearPositions };
+})();
+
+
+/* ---- core/placement.js ---- */
+__eih["core/placement.js"] = (() => {
+/** 悬浮框定位（纯函数）。两页共用，不依赖关系图模块。 */
+
+function placeTooltip(anchorRect, boxSize, { preferRight, pad = 8, vw, vh } = {}) {
+  const tw = boxSize.width || 0, th = boxSize.height || 0;
+  const W = vw || 1200, H = vh || 800;
+  const r = anchorRect || { left: 0, top: 0, right: 0, bottom: 0 };
+  let x, y;
+  if (preferRight && W - r.right - pad >= Math.min(tw, 280)) {
+    x = r.right + 10;
+    y = r.top;
+  } else {
+    x = Math.min(r.left, W - tw - pad);
+    y = r.bottom + 6;
+    if (y + th > H - pad) y = Math.max(pad, r.top - th - 6);
+  }
+  return {
+    left: Math.max(pad, Math.min(x, W - tw - pad)),
+    top: Math.max(pad, Math.min(y, H - th - pad)),
+  };
+}
+
+function placePointerTooltip(x, y, boxSize, { pad = 8, vw, vh } = {}) {
+  const tw = boxSize.width || 0, th = boxSize.height || 0;
+  const W = vw || 1200, H = vh || 800;
+  return {
+    left: Math.max(pad, Math.min(x + 14, W - tw - pad)),
+    top: Math.max(pad, Math.min(y + 14, H - th - pad)),
+  };
+}
+
+  return { placeTooltip, placePointerTooltip };
+})();
+
+
+/* ---- runtime/composables/use-listeners.js ---- */
+__eih["runtime/composables/use-listeners.js"] = (() => {
+/** Scoped, idempotent resource ownership; completed work removes its own registration. */
+function useListeners(Vue) {
+  const cleanups = new Set();
+  let disposed = false;
+  function track(off) {
+    let active = true;
+    const release = () => {
+      if (!active) return;
+      active = false;
+      cleanups.delete(release);
+      off();
+    };
+    if (disposed) release();
+    else cleanups.add(release);
+    return release;
+  }
+  function listen(target, type, handler, opts) {
+    if (disposed || !target?.addEventListener) return () => {};
+    let off;
+    const once = !!(opts && typeof opts === "object" && opts.once);
+    const wrapped = once ? function (event) {
+      off();
+      if (typeof handler === "function") handler.call(this, event);
+      else handler.handleEvent(event);
+    } : handler;
+    target.addEventListener(type, wrapped, opts);
+    off = track(() => target.removeEventListener(type, wrapped, opts));
+    return off;
+  }
+  function timeout(fn, ms) {
+    if (disposed) return () => {};
+    const id = setTimeout(() => { off(); fn(); }, ms);
+    const off = track(() => clearTimeout(id));
+    return off;
+  }
+  function raf(fn) {
+    if (disposed) return () => {};
+    if (typeof requestAnimationFrame !== "function") { fn(); return () => {}; }
+    const id = requestAnimationFrame(() => { off(); fn(); });
+    const off = track(() => cancelAnimationFrame(id));
+    return off;
+  }
+  function cleanup() {
+    for (const off of [...cleanups]) {
+      try { off(); } catch { /* continue releasing the remaining resources */ }
+    }
+  }
+  Vue.onBeforeUnmount?.(() => { disposed = true; cleanup(); });
+  return { listen, timeout, raf, track, cleanup, pending: () => cleanups.size };
+}
+
+  return { useListeners };
+})();
+
+
+/* ---- runtime/composables/use-persistent.js ---- */
+__eih["runtime/composables/use-persistent.js"] = (() => {
+const getStorage = __eih["core/storage.js"].getStorage;
+const readJSON = __eih["core/storage.js"].readJSON;
+const writeJSON = __eih["core/storage.js"].writeJSON;
+const readNumber = __eih["core/storage.js"].readNumber;
+const writeText = __eih["core/storage.js"].writeText;
+
+function usePersistent(Vue, { storage } = {}) {
+  const store = storage || getStorage();
+  return {
+    storage: store,
+    readJSON: (key, fb) => readJSON(store, key, fb),
+    writeJSON: (key, val) => writeJSON(store, key, val),
+    readNumber: (key, fb) => readNumber(store, key, fb),
+    writeText: (key, val) => writeText(store, key, val),
+  };
+}
+
+  return { usePersistent };
+})();
+
+
+/* ---- runtime/composables/use-media.js ---- */
+__eih["runtime/composables/use-media.js"] = (() => {
+const useListeners = __eih["runtime/composables/use-listeners.js"].useListeners;
+
+/** 视口宽度与 matchMedia 订阅；卸载时移除监听。测量用 innerWidth / matchMedia，不查询组件树。 */
+function useMedia(Vue, { getWidth } = {}) {
+  const { ref, onMounted } = Vue;
+  const { listen } = useListeners(Vue);
+  const widthOf = () => {
+    if (typeof getWidth === "function") return getWidth();
+    return typeof innerWidth === "number" ? innerWidth : 1200;
+  };
+  const viewport = ref(widthOf());
+  const dark = ref(typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches);
+
+  onMounted(() => {
+    viewport.value = widthOf();
+    listen(typeof window !== "undefined" ? window : null, "resize", () => { viewport.value = widthOf(); });
+    if (typeof matchMedia === "function") {
+      const mq = matchMedia("(prefers-color-scheme: dark)");
+      dark.value = mq.matches;
+      const on = ev => { dark.value = ev.matches; };
+      if (typeof mq.addEventListener === "function") listen(mq, "change", on);
+      else if (typeof mq.addListener === "function") {
+        mq.addListener(on);
+        listen({ addEventListener() {}, removeEventListener() { try { mq.removeListener(on); } catch {} } }, "noop", () => {});
+      }
+    }
+  });
+
+  return { viewport, dark };
+}
+
+  return { useMedia };
+})();
+
+
+/* ---- runtime/composables/use-search.js ---- */
+__eih["runtime/composables/use-search.js"] = (() => {
+function useSearch(Vue, { initial = "" } = {}) {
+  const { ref } = Vue;
+  const filter = ref(initial);
+  function setFilter(v) { filter.value = v == null ? "" : String(v); }
+  function clear() { filter.value = ""; }
+  return { filter, setFilter, clear };
+}
+
+  return { useSearch };
+})();
+
+
+/* ---- runtime/composables/use-tabs.js ---- */
+__eih["runtime/composables/use-tabs.js"] = (() => {
+function useTabs(Vue, { isOpenable } = {}) {
+  const { ref, computed } = Vue;
+  const tabs = ref([]);
+  const active = ref(null);
+  const hasTabs = computed(() => tabs.value.length > 0);
+
+  function open(id) {
+    if (isOpenable && !isOpenable(id)) return false;
+    if (!id) return false;
+    if (!tabs.value.includes(id)) tabs.value = [...tabs.value, id];
+    active.value = id;
+    return true;
+  }
+  function close(id) {
+    const next = tabs.value.filter(x => x !== id);
+    tabs.value = next;
+    if (active.value === id) active.value = next[next.length - 1] || null;
+  }
+  function select(id) {
+    if (tabs.value.includes(id)) active.value = id;
+  }
+  function closeAll() {
+    tabs.value = [];
+    active.value = null;
+  }
+  return { tabs, active, hasTabs, open, close, closeAll, select };
+}
+
+  return { useTabs };
+})();
+
+
+/* ---- runtime/composables/use-collapse.js ---- */
+__eih["runtime/composables/use-collapse.js"] = (() => {
+const API_COLLAPSE_KEY = __eih["core/storage.js"].API_COLLAPSE_KEY;
+const usePersistent = __eih["runtime/composables/use-persistent.js"].usePersistent;
+
+function useCollapse(Vue, { key = API_COLLAPSE_KEY, storage } = {}) {
+  const { ref } = Vue;
+  const persist = usePersistent(Vue, { storage });
+  const collapsed = ref(persist.readJSON(key, {}) || {});
+  function toggle(id) {
+    const next = { ...collapsed.value, [id]: !collapsed.value[id] };
+    collapsed.value = next;
+    persist.writeJSON(key, next);
+  }
+  function isClosed(id, forceOpen) {
+    return !forceOpen && !!collapsed.value[id];
+  }
+  return { collapsed, toggle, isClosed };
+}
+
+  return { useCollapse };
+})();
+
+
+/* ---- runtime/composables/use-tooltip.js ---- */
+__eih["runtime/composables/use-tooltip.js"] = (() => {
+const placeTooltip = __eih["core/placement.js"].placeTooltip;
+const placePointerTooltip = __eih["core/placement.js"].placePointerTooltip;
+const useListeners = __eih["runtime/composables/use-listeners.js"].useListeners;
+
+/**
+ * 悬浮框。boxEl 必须绑定到真实的 .eih-tip 根元素（由 eih-tooltip 的 measure-ref 契约写入）。
+ * 显示后 nextTick 再测量，避免尚未布局时宽高为 0。
+ */
+function useTooltip(Vue, { delay = 260 } = {}) {
+  const { reactive, computed, ref, nextTick } = Vue;
+  const { timeout, cleanup } = useListeners(Vue);
+  const tip = reactive({ show: false, x: 0, y: 0, payload: null, kind: "" });
+  const boxEl = ref(null);
+  const style = computed(() => ({
+    left: tip.x + "px",
+    top: tip.y + "px",
+    display: tip.show ? "block" : "none",
+  }));
+  let showOff = null;
+
+  function cancel() {
+    if (showOff) showOff();
+    showOff = null;
+  }
+
+  function boxSize() {
+    const box = boxEl.value;
+    if (!box || !box.getBoundingClientRect) return { width: 0, height: 0 };
+    const r = box.getBoundingClientRect();
+    return { width: r.width || 0, height: r.height || 0 };
+  }
+
+  function viewport() {
+    return {
+      vw: typeof innerWidth === "number" ? innerWidth : 1200,
+      vh: typeof innerHeight === "number" ? innerHeight : 800,
+    };
+  }
+
+  function applyPlacement() {
+    const box = boxEl.value;
+    if (!box) return;
+    const size = boxSize();
+    const vp = viewport();
+    let pos;
+    if (!tip._anchor && Number.isFinite(tip._px) && Number.isFinite(tip._py)) {
+      pos = placePointerTooltip(tip._px || 0, tip._py || 0, size, vp);
+    } else {
+      const anchor = tip._anchor;
+      const rect = anchor && anchor.getBoundingClientRect
+        ? anchor.getBoundingClientRect()
+        : { left: 0, top: 0, right: 0, bottom: 0 };
+      pos = placeTooltip(rect, size, Object.assign({ preferRight: tip._preferRight || tip.kind === "type" }, vp));
+    }
+    tip.x = pos.left;
+    tip.y = pos.top;
+  }
+
+  function placeSoon() {
+    const run = () => applyPlacement();
+    if (typeof nextTick === "function") nextTick(run);
+    else run();
+  }
+
+  function show(next, wait = delay) {
+    cancel();
+    showOff = timeout(() => {
+      tip.payload = next.payload;
+      tip.kind = next.kind || "";
+      tip._anchor = next.anchor || null;
+      tip._preferRight = !!next.preferRight;
+      tip._px = next.x;
+      tip._py = next.y;
+      tip.show = true;
+      placeSoon();
+    }, wait);
+  }
+
+  function hide() {
+    cancel();
+    tip.show = false;
+  }
+
+  function hideSoon() {
+    cancel();
+    showOff = timeout(() => { tip.show = false; }, 80);
+  }
+
+  function movePointer(x, y) {
+    tip._px = x;
+    tip._py = y;
+    if (tip.show) applyPlacement();
+  }
+
+    function bindBox(el) { boxEl.value = el || null; }
+
+  return { tip, style, boxEl, bindBox, show, hide, hideSoon, movePointer, applyPlacement, cancel, cleanup };
+
+}
+
+  return { useTooltip };
+})();
+
+
+/* ---- runtime/components/sdl-highlight.js ---- */
+__eih["runtime/components/sdl-highlight.js"] = (() => {
+const tokenizeSDL = __eih["core/highlight.js"].tokenizeSDL;
+
+const tag = "sdl-highlight";
+const name = "SdlHighlight";
+
+function define(Vue) {
+  const { computed } = Vue;
+  return {
+    name,
+    props: {
+      source: { type: String, default: "" },
+      types: { type: Object, default: () => ({}) },
+    },
+    emits: ["open-type"],
+    setup(props, { emit }) {
+      const tokens = computed(() => tokenizeSDL(props.source, props.types));
+      function onType(e, typ) {
+        // 边界：若页面上已有 hash 锚点 #type-name，允许默认跳转；否则打开详情 tab。
+        const local = typeof document !== "undefined" && typ && document.getElementById("type-" + typ);
+        if (!local || e.metaKey || e.ctrlKey) {
+          e.preventDefault();
+          emit("open-type", typ, e);
+        }
+      }
+      return { tokens, onType };
+    },
+    template: `<pre class="sdl"><template v-for="(tok, i) in tokens" :key="i"><a v-if="tok.href" class="tk-type" :href="tok.href" @click="onType($event, tok.name)">{{ tok.text }}</a><span v-else-if="tok.cls" :class="tok.cls">{{ tok.text }}</span><template v-else>{{ tok.text }}</template></template></pre>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/api-type-chip.js ---- */
+__eih["runtime/components/api-type-chip.js"] = (() => {
+const kindClass = __eih["core/api-view.js"].kindClass;
+
+const tag = "api-type-chip";
+const name = "ApiTypeChip";
+
+function define(Vue) {
+  const { computed } = Vue;
+  return {
+    name,
+    props: { name: { type: String, required: true }, types: { type: Object, required: true } },
+    emits: ["open-type", "tip", "tip-hide"],
+    setup(props) {
+      const cls = computed(() => "tchip" + kindClass(props.types[props.name] && props.types[props.name].kind));
+      return { cls };
+    },
+    template: `<a :class="cls" :href="'#type-' + name" @click="$emit('open-type', name, $event)" @mouseenter="$emit('tip', name, $event.currentTarget)" @mouseleave="$emit('tip-hide')">
+      <span class="dot"></span>{{ name }}
+    </a>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/api-op-row.js ---- */
+__eih["runtime/components/api-op-row.js"] = (() => {
+const sigText = __eih["core/api-view.js"].sigText;
+
+const tag = "api-op-row";
+const name = "ApiOpRow";
+
+function define(Vue) {
+  const { computed } = Vue;
+  return {
+    name,
+    props: { op: { type: Object, required: true }, types: { type: Object, required: true } },
+    emits: ["open-type"],
+    setup(props) {
+      const sig = computed(() => sigText(props.op));
+      const kindCls = computed(() => props.op.kind ? props.op.kind[0] : "");
+      const kindLabel = computed(() => (props.op.kind || "").toUpperCase());
+      return { sig, kindCls, kindLabel };
+    },
+    template: `<div class="op-row" :id="'op-' + op.name">
+      <span class="chip-kind" :class="kindCls">{{ kindLabel }}</span>
+      <sdl-highlight :source="sig" :types="types" @open-type="(name, ev) => $emit('open-type', name, ev)"></sdl-highlight>
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/api-type-expand.js ---- */
+__eih["runtime/components/api-type-expand.js"] = (() => {
+const KIND_LABEL = __eih["core/api-view.js"].KIND_LABEL;
+const kindClass = __eih["core/api-view.js"].kindClass;
+
+const tag = "api-type-expand";
+const name = "ApiTypeExpand";
+
+function define(Vue) {
+  const { computed } = Vue;
+  return {
+    name,
+    props: { name: { type: String, required: true }, types: { type: Object, required: true }, withId: { type: Boolean, default: false } },
+    emits: ["open-type"],
+    setup(props) {
+      const t = computed(() => props.types[props.name] || {});
+      const label = computed(() => (KIND_LABEL[t.value.kind] || t.value.kind || "").toUpperCase());
+      const headCls = computed(() => "chip-tk" + kindClass(t.value.kind));
+      return { t, label, headCls };
+    },
+    template: `<div class="card t-exp" :id="withId ? 'type-' + name : undefined">
+      <div class="t-exp-h">
+        <span :class="headCls">{{ label }}</span>
+        <span class="t-exp-name">{{ name }}</span>
+      </div>
+      <div v-if="t.description" class="t-desc">{{ t.description }}</div>
+      <sdl-highlight :source="t.sdl" :types="types" @open-type="(name, ev) => $emit('open-type', name, ev)"></sdl-highlight>
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/api-type-detail.js ---- */
+__eih["runtime/components/api-type-detail.js"] = (() => {
+const KIND_LABEL = __eih["core/api-view.js"].KIND_LABEL;
+const kindClass = __eih["core/api-view.js"].kindClass;
+const refsOf = __eih["core/api-view.js"].refsOf;
+const usedBy = __eih["core/api-view.js"].usedBy;
+
+const tag = "api-type-detail";
+const name = "ApiTypeDetail";
+
+function define(Vue) {
+  const { computed } = Vue;
+  return {
+    name,
+    props: { name: { type: String, required: true }, types: { type: Object, required: true }, ops: { type: Array, default: () => [] } },
+    emits: ["open-type", "go-op", "tip", "tip-hide"],
+    setup(props) {
+      const t = computed(() => props.types[props.name] || {});
+      const label = computed(() => (KIND_LABEL[t.value.kind] || t.value.kind || "").toUpperCase());
+      const headCls = computed(() => "chip-tk" + kindClass(t.value.kind));
+      const refs = computed(() => refsOf(props.types, props.name).filter(r => props.types[r]));
+      const users = computed(() => usedBy(props.ops, props.name));
+      function kindOf(n) { return props.types[n] && props.types[n].kind; }
+      function initial(k) { return (k || "q")[0]; }
+      return { t, label, headCls, refs, users, kindOf, initial };
+    },
+    template: `<div>
+      <div class="head-chips"><span :class="headCls">{{ label }}</span></div>
+      <div class="t-name">{{ name }}</div>
+      <div class="t-desc">{{ t.description || "" }}</div>
+      <h2 class="sec">定义 <span class="n">SDL</span></h2>
+      <div class="card">
+        <sdl-highlight :source="t.sdl" :types="types" @open-type="(name, ev) => $emit('open-type', name, ev)"></sdl-highlight>
+      </div>
+      <template v-if="refs.length">
+        <h2 class="sec">引用 <span class="n">REFERENCES · {{ refs.length }}</span></h2>
+        <div class="ref-chips">
+          <a v-for="r in refs" :key="r" class="ref-chip" :href="'#type-' + r" @click="$emit('open-type', r, $event)" @mouseenter="$emit('tip', r, $event.currentTarget)" @mouseleave="$emit('tip-hide')">{{ r }}<span class="k">{{ kindOf(r) }}</span></a>
+        </div>
+      </template>
+      <template v-if="users.length">
+        <h2 class="sec">使用此类型的操作 <span class="n">USED BY · {{ users.length }}</span></h2>
+        <div class="card">
+          <a v-for="u in users" :key="u.name" class="use-row" :href="'#op-' + u.name" @click="$emit('go-op', u.name)">
+            <span class="qm" :class="initial(u.kind)">{{ initial(u.kind).toUpperCase() }}</span>
+            <span class="nm">{{ u.name }}</span>
+            <span class="ds">{{ u.description || "" }}</span>
+          </a>
+        </div>
+      </template>
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/api-domain-section.js ---- */
+__eih["runtime/components/api-domain-section.js"] = (() => {
+const tag = "api-domain-section";
+const name = "ApiDomainSection";
+
+function define() {
+  return {
+    name,
+    props: { sec: { type: Object, required: true }, types: { type: Object, required: true } },
+    emits: ["toggle", "open-type", "tip", "tip-hide"],
+    setup() { return {}; },
+    template: `<section class="dom" :class="{ closed: sec.closed }" :data-dom="sec.key">
+      <div class="dom-h" role="button" :aria-expanded="(!sec.closed).toString()" @click="$emit('toggle', sec.key)">
+        <span class="caret"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"></path></svg></span>{{ sec.title }}<span class="n">{{ sec.count }}</span>
+      </div>
+      <div class="dom-body">
+        <div v-if="sec.ops.length" class="card">
+          <api-op-row v-for="o in sec.ops" :key="o.name" :op="o" :types="types" @open-type="(name, ev) => $emit('open-type', name, ev)"></api-op-row>
+        </div>
+        <api-type-expand v-for="e in sec.expands" :key="e.name" :name="e.name" :types="types" :with-id="e.withId" @open-type="(name, ev) => $emit('open-type', name, ev)"></api-type-expand>
+        <template v-if="sec.restTypes.length">
+          <div class="t-sub">类型 <span class="n">{{ sec.restTypes.length }}</span></div>
+          <div class="tchips">
+            <api-type-chip v-for="n in sec.restTypes" :key="n" :name="n" :types="types" @open-type="(name, ev) => $emit('open-type', name, ev)" @tip="(n, el) => $emit('tip', n, el)" @tip-hide="$emit('tip-hide')"></api-type-chip>
+          </div>
+        </template>
+        <template v-if="sec.restInputs.length">
+          <div class="t-sub">输入 <span class="n">{{ sec.restInputs.length }}</span></div>
+          <div class="tchips">
+            <api-type-chip v-for="n in sec.restInputs" :key="n" :name="n" :types="types" @open-type="(name, ev) => $emit('open-type', name, ev)" @tip="(n, el) => $emit('tip', n, el)" @tip-hide="$emit('tip-hide')"></api-type-chip>
+          </div>
+        </template>
+      </div>
+    </section>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/api-toolbar.js ---- */
+__eih["runtime/components/api-toolbar.js"] = (() => {
+const tag = "api-toolbar";
+const name = "ApiToolbar";
+
+function define() {
+  return {
+    name,
+    props: { modelValue: { type: String, default: "" } },
+    emits: ["update:modelValue"],
+    setup() { return {}; },
+    template: `<div class="topbar"><div class="topbar-in">
+      <input id="search" type="search" placeholder="搜索操作 / 类型…" autocomplete="off" :value="modelValue" @input="$emit('update:modelValue', $event.target.value)">
+    </div></div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/eih-tab-strip.js ---- */
+__eih["runtime/components/eih-tab-strip.js"] = (() => {
+const tag = "eih-tab-strip";
+const name = "EihTabStrip";
+
+function define(Vue) {
+  return {
+    name,
+    props: {
+      tabs: { type: Array, default: () => [] },
+      active: { type: String, default: null },
+      tabClass: { type: Function, default: n => "tab" + (n ? "" : "") },
+    },
+    emits: ["select", "close"],
+    setup(props) {
+      function cls(n) {
+        const base = typeof props.tabClass === "function" ? props.tabClass(n) : "tab";
+        return ((base || "tab") + (n === props.active ? " on" : "")).trim();
+      }
+      return { cls };
+    },
+    template: `<div class="tab-strip" id="tabStrip">
+      <div v-for="n in tabs" :key="n" :class="cls(n)" @click="$emit('select', n)">
+        <span class="dot"></span>{{ n }}
+        <span class="x" @click.stop="$emit('close', n)">×</span>
+      </div>
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/composables/use-pane-resize.js ---- */
+__eih["runtime/composables/use-pane-resize.js"] = (() => {
+const useListeners = __eih["runtime/composables/use-listeners.js"].useListeners;
+
+/** One active pointer owns resize, capture, listeners and the final committed width. */
+function usePaneResize(Vue, { width, min, maxOf, onCommit, grabbing } = {}) {
+  const { ref, onBeforeUnmount } = Vue;
+  const { listen } = useListeners(Vue);
+  const dragging = ref(false);
+  const gripEl = ref(null);
+  let gesture = null;
+  let disposed = false;
+  function matches(e) { return gesture && (gesture.id == null || e?.pointerId == null || e.pointerId === gesture.id); }
+  function finish(commit = false) {
+    const d = gesture;
+    if (!d) return;
+    gesture = null;
+    for (const off of d.offs) off();
+    dragging.value = false;
+    if (grabbing) grabbing.value = false;
+    if (d.el?.releasePointerCapture && d.id != null) {
+      try { d.el.releasePointerCapture(d.id); } catch { /* capture already lost */ }
+    }
+    if (commit) onCommit?.(d.width);
+  }
+  function onGripDown(ev) {
+    if (disposed || gesture || ev.button || ev.isPrimary === false) return false;
+    ev.preventDefault();
+    const d = { id: ev.pointerId, el: ev.currentTarget, width: width.value, offs: [] };
+    gesture = d;
+    dragging.value = true;
+    if (grabbing) grabbing.value = true;
+    const target = typeof window !== "undefined" ? window : d.el;
+    d.offs.push(listen(target, "pointermove", e => {
+      if (!matches(e)) return;
+      const vw = typeof innerWidth === "number" ? innerWidth : 1200;
+      const max = typeof maxOf === "function" ? maxOf(vw) : vw;
+      const lo = typeof min === "function" ? min(vw) : min;
+      d.width = Math.min(Math.max(vw - e.clientX, lo), max);
+      width.value = d.width;
+    }));
+    d.offs.push(listen(target, "pointerup", e => { if (matches(e)) finish(true); }));
+    d.offs.push(listen(target, "pointercancel", e => { if (matches(e)) finish(false); }));
+    d.offs.push(listen(d.el, "lostpointercapture", e => { if (matches(e)) finish(false); }));
+    if (d.el?.setPointerCapture && d.id != null) {
+      try { d.el.setPointerCapture(d.id); } catch { /* global listeners remain usable */ }
+    }
+    return true;
+  }
+  function interrupt() { finish(false); }
+  onBeforeUnmount?.(() => { disposed = true; interrupt(); });
+  return { gripEl, dragging, onGripDown, interrupt };
+}
+
+  return { usePaneResize };
+})();
+
+
+/* ---- runtime/components/eih-side-pane.js ---- */
+__eih["runtime/components/eih-side-pane.js"] = (() => {
+const usePaneResize = __eih["runtime/composables/use-pane-resize.js"].usePaneResize;
+const API_PANE_MIN = __eih["core/chrome.js"].API_PANE_MIN;
+const API_MAIN_MIN = __eih["core/chrome.js"].API_MAIN_MIN;
+const ERD_PANE_MIN = __eih["core/chrome.js"].ERD_PANE_MIN;
+const ERD_PANE_MAX = __eih["core/chrome.js"].ERD_PANE_MAX;
+
+const tag = "eih-side-pane";
+const name = "EihSidePane";
+
+/**
+ * 右侧详情栏。宽度由 props.width 单源输入，拖拽只 $emit('resize'|'commit')。
+ * overlay 时改为覆盖层宽度计算（不挤占主栏）。卸载时释放 pointer capture。
+ */
+function define(Vue) {
+  const { computed, ref } = Vue;
+  return {
+    name,
+    props: {
+      shown: { type: Boolean, default: false },
+      width: { type: Number, default: 400 },
+      kind: { type: String, default: "api" },
+      overlay: { type: Boolean, default: false },
+    },
+    emits: ["resize", "commit"],
+    setup(props, { emit }) {
+      const grabbing = ref(false);
+      const paneStyle = computed(() => ({ width: props.width + "px" }));
+      const widthRef = computed({
+        get: () => props.width,
+        set: v => emit("resize", v),
+      });
+      function maxOf(vw) {
+        if (props.overlay) return Math.max(200, vw - 24);
+        if (props.kind === "erd") return Math.min(ERD_PANE_MAX, vw * 0.62);
+        return Math.max(API_PANE_MIN, vw - API_MAIN_MIN);
+      }
+      function minOf(vw) {
+        const floor = props.kind === "erd" ? ERD_PANE_MIN : API_PANE_MIN;
+        if (props.overlay) return Math.min(floor, Math.max(200, (vw || 1200) - 24));
+        return floor;
+      }
+      const pane = usePaneResize(Vue, {
+        width: widthRef,
+        min: minOf,
+        maxOf,
+        onCommit: w => emit("commit", w),
+        grabbing,
+      });
+      return { paneStyle, gripEl: pane.gripEl, grabbing, onGripDown: pane.onGripDown };
+    },
+    template: `<aside id="pane" class="eih-pane" :class="{ show: shown, overlay: overlay }" :style="paneStyle">
+      <div id="paneGrip" class="pane-grip" :class="{ on: grabbing }" ref="gripEl" @pointerdown="onGripDown"></div>
+      <slot name="tabs"></slot>
+      <div id="tabBody" class="tab-body"><slot></slot></div>
+    </aside>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/eih-tooltip.js ---- */
+__eih["runtime/components/eih-tooltip.js"] = (() => {
+const tag = "eih-tooltip";
+const name = "EihTooltip";
+
+/**
+ * 悬浮框根节点。measure-ref 须为 setter 函数（或带 .value 的袋），
+ * 在根元素挂载后写入，供 useTooltip 测量。不要把顶层 ref 直接绑到这个 prop（模板会自动解包成 null）。
+ */
+function define() {
+  return {
+    name,
+    props: {
+      show: { type: Boolean, default: false },
+      stylePos: { type: Object, default: () => ({ display: "none" }) },
+      variant: { type: String, default: "" },
+      measureRef: { default: null },
+    },
+    emits: ["enter", "leave"],
+    setup(props) {
+      function setRoot(el) {
+        const t = props.measureRef;
+        if (typeof t === "function") t(el || null);
+        else if (t && typeof t === "object") t.value = el || null;
+      }
+      return { setRoot };
+    },
+    template: `<div class="eih-tip" id="tip" :class="{ 'is-ts': variant === 'ts' }" :style="stylePos" :ref="setRoot" @mouseenter="$emit('enter')" @mouseleave="$emit('leave')"><slot></slot></div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/components/api-explorer.js ---- */
+__eih["runtime/components/api-explorer.js"] = (() => {
+const buildApiView = __eih["core/api-view.js"].buildApiView;
+const buildApiSections = __eih["core/api-view.js"].buildApiSections;
+const tipSdlPreview = __eih["core/api-view.js"].tipSdlPreview;
+const kindClass = __eih["core/api-view.js"].kindClass;
+const KIND_LABEL = __eih["core/api-view.js"].KIND_LABEL;
+const API_PANE_KEY = __eih["core/storage.js"].API_PANE_KEY;
+const defaultApiPane = __eih["core/chrome.js"].defaultApiPane;
+const clampApiPane = __eih["core/chrome.js"].clampApiPane;
+const isApiOverlay = __eih["core/chrome.js"].isApiOverlay;
+const useSearch = __eih["runtime/composables/use-search.js"].useSearch;
+const useTabs = __eih["runtime/composables/use-tabs.js"].useTabs;
+const useCollapse = __eih["runtime/composables/use-collapse.js"].useCollapse;
+const usePersistent = __eih["runtime/composables/use-persistent.js"].usePersistent;
+const useTooltip = __eih["runtime/composables/use-tooltip.js"].useTooltip;
+const useMedia = __eih["runtime/composables/use-media.js"].useMedia;
+const useListeners = __eih["runtime/composables/use-listeners.js"].useListeners;
+
+const tag = "api-explorer";
+const name = "ApiExplorer";
+
+function define(Vue) {
+  const { computed, ref, onMounted } = Vue;
+  return {
+    name,
+    props: { api: { type: Object, required: true } },
+    setup(props) {
+      const persist = usePersistent(Vue);
+      const { viewport } = useMedia(Vue);
+      const { listen } = useListeners(Vue);
+      const view = computed(() => buildApiView(props.api));
+      const types = computed(() => view.value.types);
+      const ops = computed(() => view.value.ops);
+      const { filter } = useSearch(Vue);
+      const collapse = useCollapse(Vue, { storage: persist.storage });
+      const tabs = useTabs(Vue, { isOpenable: id => !!types.value[id] });
+      const defPane = defaultApiPane(typeof innerWidth === "number" ? innerWidth : 1200);
+      const overlay = computed(() => isApiOverlay(viewport.value));
+      const paneW = ref(clampApiPane(persist.readNumber(API_PANE_KEY, defPane), typeof innerWidth === "number" ? innerWidth : 1200, { overlay: isApiOverlay(typeof innerWidth === "number" ? innerWidth : 1200) }));
+      const tip = useTooltip(Vue, { delay: 260 });
+
+      const sections = computed(() => buildApiSections(view.value, filter.value, collapse.collapsed.value));
+      const empty = computed(() => sections.value.length === 0);
+      const tipView = computed(() => {
+        const n = tip.tip.payload;
+        const t = n && types.value[n];
+        return t ? Object.assign({ name: n }, tipSdlPreview(t)) : null;
+      });
+      function tabClass(n) {
+        const t = types.value[n];
+        return "tab" + kindClass(t && t.kind);
+      }
+      function openTab(n, ev) {
+        if (ev && ev.defaultPrevented === false) {
+          const local = typeof document !== "undefined" && document.getElementById("type-" + n);
+          if (local && !ev.metaKey && !ev.ctrlKey) return;
+          ev.preventDefault && ev.preventDefault();
+        }
+        tabs.open(n);
+      }
+      function goOp(name) {
+        const el = typeof document !== "undefined" && document.getElementById("op-" + name);
+        if (el && el.scrollIntoView) el.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      function onResize(w) { paneW.value = w; }
+      function onCommit(w) { persist.writeText(API_PANE_KEY, w); }
+      function showTip(n, el) { tip.show({ payload: n, anchor: el, kind: "type" }); }
+      onMounted(() => {
+        listen(typeof window !== "undefined" ? window : null, "resize", () => {
+          paneW.value = clampApiPane(paneW.value, viewport.value, { overlay: overlay.value });
+        });
+      });
+      const tipShow = computed(() => tip.tip.show);
+      return {
+        types, ops, filter, sections, empty, tabs, paneW, overlay, tip, tipView, tipShow,
+        tabList: tabs.tabs, activeTab: tabs.active, hasTabs: tabs.hasTabs,
+        tabClass, openTab, goOp, onResize, onCommit, showTip, collapse, KIND_LABEL,
+        tipStyle: tip.style,
+      };
+    },
+    template: `<div class="api-root" :class="{ 'is-overlay': overlay }" style="display:flex;min-height:100vh;flex:1;">
+      <main id="main">
+        <api-toolbar v-model="filter"></api-toolbar>
+        <div class="wrap" id="list">
+          <div v-if="empty" class="list-empty">没有匹配项</div>
+          <api-domain-section v-for="sec in sections" :key="sec.key" :sec="sec" :types="types" @toggle="collapse.toggle" @open-type="openTab" @tip="showTip" @tip-hide="tip.hide"></api-domain-section>
+        </div>
+      </main>
+      <div class="api-scrim" :class="{ 'is-on': overlay && hasTabs }" @click="tabs.closeAll()"></div>
+      <eih-side-pane :shown="hasTabs" :width="paneW" kind="api" :overlay="overlay" @resize="onResize" @commit="onCommit">
+        <template #tabs>
+          <eih-tab-strip :tabs="tabList" :active="activeTab" :tab-class="tabClass" @select="tabs.select" @close="tabs.close"></eih-tab-strip>
+        </template>
+        <api-type-detail v-if="activeTab && types[activeTab]" :name="activeTab" :types="types" :ops="ops" @open-type="openTab" @go-op="goOp" @tip="showTip" @tip-hide="tip.hide"></api-type-detail>
+      </eih-side-pane>
+      <eih-tooltip :show="tipShow" :style-pos="tipStyle" :measure-ref="tip.bindBox">
+        <template v-if="tipView">
+          <div class="tp-head"><span :class="tipView.cls">{{ tipView.kind }}</span><b>{{ tipView.name }}</b></div>
+          <div class="tp-sdl">{{ tipView.sdl }}</div>
+          <div v-if="tipView.description" class="tp-foot">{{ tipView.description }}</div>
+        </template>
+      </eih-tooltip>
+    </div>`,
+  };
+}
+
+  return { tag, name, define };
+})();
+
+
+/* ---- runtime/register-api.js ---- */
+__eih["runtime/register-api.js"] = (() => {
+/** API 页注册入口：只聚合显式注册，不在本文件定义组件。 */
+const t1 = __eih["runtime/components/sdl-highlight.js"].tag;
+const d1 = __eih["runtime/components/sdl-highlight.js"].define;
+const t2 = __eih["runtime/components/api-type-chip.js"].tag;
+const d2 = __eih["runtime/components/api-type-chip.js"].define;
+const t3 = __eih["runtime/components/api-op-row.js"].tag;
+const d3 = __eih["runtime/components/api-op-row.js"].define;
+const t4 = __eih["runtime/components/api-type-expand.js"].tag;
+const d4 = __eih["runtime/components/api-type-expand.js"].define;
+const t5 = __eih["runtime/components/api-type-detail.js"].tag;
+const d5 = __eih["runtime/components/api-type-detail.js"].define;
+const t6 = __eih["runtime/components/api-domain-section.js"].tag;
+const d6 = __eih["runtime/components/api-domain-section.js"].define;
+const t7 = __eih["runtime/components/api-toolbar.js"].tag;
+const d7 = __eih["runtime/components/api-toolbar.js"].define;
+const t8 = __eih["runtime/components/eih-tab-strip.js"].tag;
+const d8 = __eih["runtime/components/eih-tab-strip.js"].define;
+const t9 = __eih["runtime/components/eih-side-pane.js"].tag;
+const d9 = __eih["runtime/components/eih-side-pane.js"].define;
+const t10 = __eih["runtime/components/eih-tooltip.js"].tag;
+const d10 = __eih["runtime/components/eih-tooltip.js"].define;
+const t11 = __eih["runtime/components/api-explorer.js"].tag;
+const d11 = __eih["runtime/components/api-explorer.js"].define;
+
+const API_COMPONENT_MODULES = [
+  [t1, d1], [t2, d2], [t3, d3], [t4, d4], [t5, d5], [t6, d6],
+  [t7, d7], [t8, d8], [t9, d9], [t10, d10], [t11, d11],
+];
+
+function registerApi(app, Vue) {
+  const registered = {};
+  for (const [tag, define] of API_COMPONENT_MODULES) {
+    const def = define(Vue);
+    app.component(tag, def);
+    registered[tag] = def;
+  }
+  return registered;
+}
+
+  return { API_COMPONENT_MODULES, registerApi };
+})();
+
+var registerApi = __eih["runtime/register-api.js"] && __eih["runtime/register-api.js"].registerApi;
+var registerErd = __eih["runtime/register-erd.js"] && __eih["runtime/register-erd.js"].registerErd;
+  const { createApp, ref, computed } = Vue;
+  const app = createApp({
+    setup() {
+      const api = ref(API);
+      const ready = computed(() => !!api.value);
+      return { api, ready };
+    },
+    template: '<api-explorer v-if="ready" :api="api"></api-explorer>'
+  });
+  registerApi(app, Vue);
+  app.mount("#app");
+})();
+</script>
+</body>
+</html>

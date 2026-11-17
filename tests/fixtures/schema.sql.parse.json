@@ -1,0 +1,984 @@
+{
+  "name": "TaskFlow",
+  "tables": [
+    {
+      "name": "users",
+      "domain": "用户与组织",
+      "color": "#5f83b4",
+      "comment": "平台用户账号",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": 1,
+          "cmt": "主键"
+        },
+        {
+          "name": "email",
+          "type": "varchar(255)",
+          "nn": 1,
+          "uq": 1,
+          "cmt": "登录邮箱"
+        },
+        {
+          "name": "name",
+          "type": "varchar(80)",
+          "nn": 1,
+          "cmt": "显示名称"
+        },
+        {
+          "name": "avatar_url",
+          "type": "text",
+          "cmt": "头像地址"
+        },
+        {
+          "name": "timezone",
+          "type": "varchar(40)",
+          "nn": 1,
+          "def": "'UTC'",
+          "cmt": "时区"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nn": 1,
+          "cmt": "注册时间"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "nn": 1,
+          "cmt": "资料更新时间"
+        }
+      ],
+      "indexes": [],
+      "kind": "entity"
+    },
+    {
+      "name": "workspaces",
+      "domain": "用户与组织",
+      "color": "#5f83b4",
+      "comment": "工作区（租户隔离的顶层边界）",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": 1,
+          "cmt": "主键"
+        },
+        {
+          "name": "slug",
+          "type": "varchar(60)",
+          "nn": 1,
+          "uq": 1,
+          "cmt": "URL 短标识"
+        },
+        {
+          "name": "name",
+          "type": "varchar(120)",
+          "nn": 1,
+          "cmt": "工作区名称"
+        },
+        {
+          "name": "plan",
+          "type": "varchar(20)",
+          "nn": 1,
+          "def": "'free'",
+          "cmt": "套餐：free / pro / enterprise"
+        },
+        {
+          "name": "owner_id",
+          "type": "uuid",
+          "nn": 1,
+          "fk": "users.id",
+          "cmt": "创建者"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nn": 1,
+          "cmt": "创建时间"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_workspaces_owner",
+          "cols": "owner_id",
+          "uq": false
+        }
+      ],
+      "kind": "entity"
+    },
+    {
+      "name": "workspace_members",
+      "domain": "用户与组织",
+      "color": "#5f83b4",
+      "comment": "工作区成员（复合主键）；role / joined_at 是关系上的属性",
+      "columns": [
+        {
+          "name": "workspace_id",
+          "type": "uuid",
+          "fk": "workspaces.id",
+          "cmt": "工作区",
+          "pk": 1
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "fk": "users.id",
+          "cmt": "成员",
+          "pk": 1
+        },
+        {
+          "name": "role",
+          "type": "varchar(20)",
+          "nn": 1,
+          "def": "'member'",
+          "cmt": "角色：owner / admin / member"
+        },
+        {
+          "name": "joined_at",
+          "type": "timestamptz",
+          "nn": 1,
+          "cmt": "加入时间"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_wm_user",
+          "cols": "user_id",
+          "uq": false
+        }
+      ],
+      "kind": "assoc"
+    },
+    {
+      "name": "projects",
+      "domain": "项目",
+      "color": "#b08850",
+      "comment": "工作区下的项目",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": 1,
+          "cmt": "主键"
+        },
+        {
+          "name": "workspace_id",
+          "type": "uuid",
+          "nn": 1,
+          "fk": "workspaces.id",
+          "cmt": "所属工作区"
+        },
+        {
+          "name": "key",
+          "type": "varchar(10)",
+          "nn": 1,
+          "cmt": "项目缩写，如 TF"
+        },
+        {
+          "name": "name",
+          "type": "varchar(120)",
+          "nn": 1,
+          "cmt": "项目名称"
+        },
+        {
+          "name": "color",
+          "type": "varchar(9)",
+          "cmt": "主题色 #hex"
+        },
+        {
+          "name": "status",
+          "type": "varchar(20)",
+          "nn": 1,
+          "def": "'active'",
+          "cmt": "active / archived"
+        },
+        {
+          "name": "lead_id",
+          "type": "uuid",
+          "fk": "users.id",
+          "cmt": "负责人，可空"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nn": 1,
+          "cmt": "创建时间"
+        },
+        {
+          "name": "archived_at",
+          "type": "timestamptz",
+          "cmt": "归档时间"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "uq_projects_ws_key",
+          "cols": "workspace_id, key",
+          "uq": true
+        },
+        {
+          "name": "idx_projects_ws",
+          "cols": "workspace_id, status",
+          "uq": false
+        }
+      ],
+      "kind": "entity"
+    },
+    {
+      "name": "sprints",
+      "domain": "项目",
+      "color": "#b08850",
+      "comment": "迭代 / 冲刺周期",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": 1,
+          "cmt": "主键"
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nn": 1,
+          "fk": "projects.id",
+          "cmt": "所属项目"
+        },
+        {
+          "name": "name",
+          "type": "varchar(120)",
+          "nn": 1,
+          "cmt": "迭代名"
+        },
+        {
+          "name": "goal",
+          "type": "text",
+          "cmt": "迭代目标"
+        },
+        {
+          "name": "starts_on",
+          "type": "date",
+          "cmt": "开始日"
+        },
+        {
+          "name": "ends_on",
+          "type": "date",
+          "cmt": "结束日"
+        },
+        {
+          "name": "status",
+          "type": "varchar(20)",
+          "nn": 1,
+          "def": "'planned'",
+          "cmt": "planned / active / closed"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_sprints_project",
+          "cols": "project_id, status",
+          "uq": false
+        }
+      ],
+      "kind": "entity"
+    },
+    {
+      "name": "tasks",
+      "domain": "任务",
+      "color": "#5f9e83",
+      "comment": "任务主表，支持父子层级",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": 1,
+          "cmt": "主键"
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nn": 1,
+          "fk": "projects.id",
+          "cmt": "所属项目"
+        },
+        {
+          "name": "sprint_id",
+          "type": "uuid",
+          "fk": "sprints.id",
+          "cmt": "所在迭代，可空"
+        },
+        {
+          "name": "parent_id",
+          "type": "uuid",
+          "fk": "tasks.id",
+          "cmt": "父任务（子任务层级）"
+        },
+        {
+          "name": "title",
+          "type": "varchar(200)",
+          "nn": 1,
+          "cmt": "标题"
+        },
+        {
+          "name": "description",
+          "type": "text",
+          "cmt": "详情，Markdown"
+        },
+        {
+          "name": "status",
+          "type": "varchar(20)",
+          "nn": 1,
+          "def": "'todo'",
+          "cmt": "todo / in_progress / done"
+        },
+        {
+          "name": "priority",
+          "type": "varchar(10)",
+          "nn": 1,
+          "def": "'medium'",
+          "cmt": "low / medium / high / urgent"
+        },
+        {
+          "name": "position",
+          "type": "double precision",
+          "nn": 1,
+          "cmt": "看板排序值"
+        },
+        {
+          "name": "due_date",
+          "type": "date",
+          "cmt": "截止日期"
+        },
+        {
+          "name": "created_by",
+          "type": "uuid",
+          "nn": 1,
+          "fk": "users.id",
+          "cmt": "创建人"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nn": 1,
+          "cmt": "创建时间"
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamptz",
+          "nn": 1,
+          "cmt": "更新时间"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_tasks_project",
+          "cols": "project_id, status",
+          "uq": false
+        },
+        {
+          "name": "idx_tasks_sprint",
+          "cols": "sprint_id",
+          "uq": false
+        },
+        {
+          "name": "idx_tasks_parent",
+          "cols": "parent_id",
+          "uq": false
+        },
+        {
+          "name": "idx_tasks_due",
+          "cols": "due_date",
+          "uq": false
+        }
+      ],
+      "kind": "entity"
+    },
+    {
+      "name": "task_assignees",
+      "domain": "任务",
+      "color": "#5f9e83",
+      "comment": "任务指派人（复合主键）",
+      "columns": [
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "fk": "tasks.id",
+          "cmt": "任务",
+          "pk": 1
+        },
+        {
+          "name": "user_id",
+          "type": "uuid",
+          "fk": "users.id",
+          "cmt": "被指派人",
+          "pk": 1
+        },
+        {
+          "name": "assigned_by",
+          "type": "uuid",
+          "fk": "users.id",
+          "cmt": "操作人"
+        },
+        {
+          "name": "assigned_at",
+          "type": "timestamptz",
+          "nn": 1,
+          "cmt": "指派时间"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_ta_user",
+          "cols": "user_id",
+          "uq": false
+        }
+      ],
+      "kind": "assoc"
+    },
+    {
+      "name": "task_tags",
+      "domain": "任务",
+      "color": "#5f9e83",
+      "comment": "任务 ↔ 标签（复合主键）",
+      "columns": [
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "fk": "tasks.id",
+          "cmt": "任务",
+          "pk": 1
+        },
+        {
+          "name": "tag_id",
+          "type": "uuid",
+          "fk": "tags.id",
+          "cmt": "标签",
+          "pk": 1
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_tt_tag",
+          "cols": "tag_id",
+          "uq": false
+        }
+      ],
+      "kind": "assoc"
+    },
+    {
+      "name": "comments",
+      "domain": "协作",
+      "color": "#9b7bb8",
+      "comment": "任务评论，支持回复",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": 1,
+          "cmt": "主键"
+        },
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "nn": 1,
+          "fk": "tasks.id",
+          "cmt": "所属任务"
+        },
+        {
+          "name": "author_id",
+          "type": "uuid",
+          "nn": 1,
+          "fk": "users.id",
+          "cmt": "作者"
+        },
+        {
+          "name": "parent_id",
+          "type": "uuid",
+          "fk": "comments.id",
+          "cmt": "回复目标评论"
+        },
+        {
+          "name": "body",
+          "type": "text",
+          "nn": 1,
+          "cmt": "正文，Markdown"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nn": 1,
+          "cmt": "发表时间"
+        },
+        {
+          "name": "edited_at",
+          "type": "timestamptz",
+          "cmt": "最后编辑时间"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_comments_task",
+          "cols": "task_id, created_at",
+          "uq": false
+        }
+      ],
+      "kind": "entity"
+    },
+    {
+      "name": "attachments",
+      "domain": "协作",
+      "color": "#9b7bb8",
+      "comment": "任务附件",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": 1,
+          "cmt": "主键"
+        },
+        {
+          "name": "task_id",
+          "type": "uuid",
+          "nn": 1,
+          "fk": "tasks.id",
+          "cmt": "所属任务"
+        },
+        {
+          "name": "uploader_id",
+          "type": "uuid",
+          "nn": 1,
+          "fk": "users.id",
+          "cmt": "上传人"
+        },
+        {
+          "name": "file_name",
+          "type": "varchar(255)",
+          "nn": 1,
+          "cmt": "原始文件名"
+        },
+        {
+          "name": "mime_type",
+          "type": "varchar(120)",
+          "cmt": "MIME 类型"
+        },
+        {
+          "name": "size_bytes",
+          "type": "bigint",
+          "nn": 1,
+          "cmt": "字节数"
+        },
+        {
+          "name": "storage_key",
+          "type": "text",
+          "nn": 1,
+          "cmt": "对象存储路径"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nn": 1,
+          "cmt": "上传时间"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_attach_task",
+          "cols": "task_id",
+          "uq": false
+        }
+      ],
+      "kind": "entity"
+    },
+    {
+      "name": "activity_logs",
+      "domain": "协作",
+      "color": "#9b7bb8",
+      "comment": "工作区级审计日志（COMMENT ON 写法等价于行尾注释，可混用）",
+      "columns": [
+        {
+          "name": "id",
+          "type": "bigint",
+          "pk": 1,
+          "cmt": "主键，自增"
+        },
+        {
+          "name": "workspace_id",
+          "type": "uuid",
+          "nn": 1,
+          "fk": "workspaces.id",
+          "cmt": "所属工作区"
+        },
+        {
+          "name": "actor_id",
+          "type": "uuid",
+          "nn": 1,
+          "fk": "users.id",
+          "cmt": "操作人"
+        },
+        {
+          "name": "entity_type",
+          "type": "varchar(40)",
+          "nn": 1,
+          "cmt": "对象类型：task / project …"
+        },
+        {
+          "name": "entity_id",
+          "type": "uuid",
+          "nn": 1,
+          "cmt": "对象 ID"
+        },
+        {
+          "name": "action",
+          "type": "varchar(40)",
+          "nn": 1,
+          "cmt": "动作：created / updated …"
+        },
+        {
+          "name": "payload",
+          "type": "jsonb",
+          "ts": "ActivityPayload",
+          "cmt": "变更快照"
+        },
+        {
+          "name": "created_at",
+          "type": "timestamptz",
+          "nn": 1,
+          "cmt": "发生时间"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_al_ws_time",
+          "cols": "workspace_id, created_at",
+          "uq": false
+        },
+        {
+          "name": "idx_al_entity",
+          "cols": "entity_type, entity_id",
+          "uq": false
+        }
+      ],
+      "types": {
+        "ActivityPayload": "{\n  /** 操作类型 */\n  action: \"created\" | \"updated\" | \"deleted\" | \"status_changed\" | \"assigned\";\n  /** 变更前的字段快照 */\n  before?: Record<string, unknown>;\n  /** 变更后的字段快照 */\n  after?: Record<string, unknown>;\n}"
+      },
+      "kind": "entity"
+    },
+    {
+      "name": "tags",
+      "domain": "标签",
+      "color": "#b87b7b",
+      "comment": "工作区内的任务标签",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "pk": 1,
+          "cmt": "主键"
+        },
+        {
+          "name": "workspace_id",
+          "type": "uuid",
+          "nn": 1,
+          "fk": "workspaces.id",
+          "cmt": "所属工作区"
+        },
+        {
+          "name": "name",
+          "type": "varchar(40)",
+          "nn": 1,
+          "cmt": "标签名"
+        },
+        {
+          "name": "color",
+          "type": "varchar(9)",
+          "cmt": "颜色 #hex"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "uq_tags_ws_name",
+          "cols": "workspace_id, name",
+          "uq": true
+        }
+      ],
+      "kind": "entity"
+    }
+  ],
+  "relations": [
+    {
+      "kind": "n:1",
+      "a": "workspaces",
+      "b": "users",
+      "aCols": [
+        "owner_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "创建者",
+      "nn": 1,
+      "purpose": "ref"
+    },
+    {
+      "kind": "n:m",
+      "via": "workspace_members",
+      "purpose": "assoc",
+      "attrs": [
+        "role",
+        "joined_at"
+      ],
+      "a": "workspaces",
+      "b": "users",
+      "aCols": [
+        "workspace_id"
+      ],
+      "bCols": [
+        "user_id"
+      ],
+      "aRef": "id",
+      "bRef": "id"
+    },
+    {
+      "kind": "n:1",
+      "a": "projects",
+      "b": "workspaces",
+      "aCols": [
+        "workspace_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "所属工作区",
+      "nn": 1,
+      "purpose": "owner"
+    },
+    {
+      "kind": "n:1",
+      "a": "projects",
+      "b": "users",
+      "aCols": [
+        "lead_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "负责人",
+      "purpose": "ref"
+    },
+    {
+      "kind": "n:1",
+      "a": "sprints",
+      "b": "projects",
+      "aCols": [
+        "project_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "所属项目",
+      "nn": 1,
+      "purpose": "owner"
+    },
+    {
+      "kind": "n:1",
+      "a": "tasks",
+      "b": "projects",
+      "aCols": [
+        "project_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "所属项目",
+      "nn": 1,
+      "purpose": "owner"
+    },
+    {
+      "kind": "n:1",
+      "a": "tasks",
+      "b": "sprints",
+      "aCols": [
+        "sprint_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "所在迭代",
+      "purpose": "owner"
+    },
+    {
+      "kind": "self",
+      "a": "tasks",
+      "b": "tasks",
+      "aCols": [
+        "parent_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "父任务（子任务层级）",
+      "purpose": "self"
+    },
+    {
+      "kind": "n:1",
+      "a": "tasks",
+      "b": "users",
+      "aCols": [
+        "created_by"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "创建人",
+      "nn": 1,
+      "purpose": "ref"
+    },
+    {
+      "kind": "n:m",
+      "via": "task_assignees",
+      "purpose": "assoc",
+      "attrs": [
+        "assigned_by",
+        "assigned_at"
+      ],
+      "a": "tasks",
+      "b": "users",
+      "aCols": [
+        "task_id"
+      ],
+      "bCols": [
+        "user_id"
+      ],
+      "aRef": "id",
+      "bRef": "id"
+    },
+    {
+      "kind": "n:m",
+      "via": "task_tags",
+      "purpose": "assoc",
+      "a": "tasks",
+      "b": "tags",
+      "aCols": [
+        "task_id"
+      ],
+      "bCols": [
+        "tag_id"
+      ],
+      "aRef": "id",
+      "bRef": "id"
+    },
+    {
+      "kind": "n:1",
+      "a": "comments",
+      "b": "tasks",
+      "aCols": [
+        "task_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "所属任务",
+      "nn": 1,
+      "purpose": "owner"
+    },
+    {
+      "kind": "n:1",
+      "a": "comments",
+      "b": "users",
+      "aCols": [
+        "author_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "作者",
+      "nn": 1,
+      "purpose": "ref"
+    },
+    {
+      "kind": "self",
+      "a": "comments",
+      "b": "comments",
+      "aCols": [
+        "parent_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "回复目标评论",
+      "purpose": "self"
+    },
+    {
+      "kind": "n:1",
+      "a": "attachments",
+      "b": "tasks",
+      "aCols": [
+        "task_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "所属任务",
+      "nn": 1,
+      "purpose": "owner"
+    },
+    {
+      "kind": "n:1",
+      "a": "attachments",
+      "b": "users",
+      "aCols": [
+        "uploader_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "上传人",
+      "nn": 1,
+      "purpose": "ref"
+    },
+    {
+      "kind": "n:1",
+      "a": "activity_logs",
+      "b": "workspaces",
+      "aCols": [
+        "workspace_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "所属工作区",
+      "nn": 1,
+      "purpose": "owner"
+    },
+    {
+      "kind": "n:1",
+      "a": "activity_logs",
+      "b": "users",
+      "aCols": [
+        "actor_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "操作人",
+      "nn": 1,
+      "purpose": "ref"
+    },
+    {
+      "kind": "n:1",
+      "a": "tags",
+      "b": "workspaces",
+      "aCols": [
+        "workspace_id"
+      ],
+      "bCols": [
+        "id"
+      ],
+      "role": "所属工作区",
+      "nn": 1,
+      "purpose": "owner"
+    }
+  ]
+}

@@ -1,0 +1,335 @@
+# TaskFlow GraphQL Schema
+# 约定："""docstring""" = 描述；# @domain X = 后续操作的分组；# → X = 返回值说明
+
+"""ISO-8601 时间戳"""
+scalar DateTime
+"""ISO-8601 日期"""
+scalar Date
+
+"""所有带 ID 的对象"""
+interface Node {
+  id: ID!
+}
+
+# ─────────────────────────── 查询 ───────────────────────────
+type Query {
+  # @domain 用户与组织
+  """当前登录用户及其工作区成员关系。"""
+  me: User!
+
+  """按 slug 获取工作区详情。"""
+  workspace(
+    """工作区 URL 短标识"""
+    slug: String!
+  ): Workspace
+
+  # @domain 项目
+  """按 ID 获取项目，含迭代列表。"""
+  project(
+    """项目 ID"""
+    id: ID!
+  ): Project
+
+  """工作区下的项目列表。"""
+  projects(
+    """所属工作区"""
+    workspaceId: ID!
+    """是否包含已归档"""
+    includeArchived: Boolean = false
+  ): [Project!]!
+
+  # @domain 任务
+  """任务详情，含子任务、指派人、标签。"""
+  task(
+    """任务 ID"""
+    id: ID!
+  ): Task
+
+  """项目内任务的分页查询，支持状态/指派人/标签过滤。
+  @returns 分页结果"""
+  tasks(
+    """所属项目"""
+    projectId: ID!
+    """过滤条件"""
+    filter: TaskFilter
+    """游标分页"""
+    page: PageInput
+  ): TaskPage!
+
+  # @domain 搜索
+  """跨任务 / 项目 / 评论的全文搜索。"""
+  search(
+    """关键词"""
+    text: String!
+    """返回数量上限"""
+    first: Int = 20
+  ): [SearchResult!]!
+}
+
+# ─────────────────────────── 变更 ───────────────────────────
+type Mutation {
+  # @domain 任务
+  """创建任务，可同时指定指派人、标签与父任务。
+  @returns 新建的任务"""
+  createTask(
+    """创建参数"""
+    input: CreateTaskInput!
+  ): Task!
+
+  """更新任务标题、详情、优先级、截止日期。"""
+  updateTask(
+    """更新参数"""
+    input: UpdateTaskInput!
+  ): Task!
+
+  """流转任务状态（看板拖拽走此接口）。"""
+  setTaskStatus(
+    """任务 ID"""
+    taskId: ID!
+    """目标状态"""
+    status: TaskStatus!
+  ): Task!
+
+  """替换任务的指派人集合。"""
+  assignTask(
+    """任务 ID"""
+    taskId: ID!
+    """指派人 ID 列表（全量替换）"""
+    userIds: [ID!]!
+  ): Task!
+
+  # @domain 协作
+  """在任务下发表评论或回复。"""
+  addComment(
+    """评论参数"""
+    input: AddCommentInput!
+  ): Comment!
+
+  # @domain 标签
+  """在工作区内新建标签。"""
+  createTag(
+    """所属工作区"""
+    workspaceId: ID!
+    """标签名"""
+    name: String!
+    """颜色 #hex"""
+    color: String
+  ): Tag!
+
+  """把标签挂到任务上（幂等）。"""
+  attachTag(
+    """任务 ID"""
+    taskId: ID!
+    """标签 ID"""
+    tagId: ID!
+  ): Task!
+}
+
+# ─────────────────────────── 类型 ───────────────────────────
+
+"""平台用户"""
+type User implements Node {
+  id: ID!
+  email: String!
+  name: String!
+  avatarUrl: String
+  timezone: String!
+  memberships: [WorkspaceMember!]!
+  createdAt: DateTime!
+}
+
+"""工作区（租户边界）"""
+type Workspace implements Node {
+  id: ID!
+  slug: String!
+  name: String!
+  plan: Plan!
+  owner: User!
+  members(first: Int = 20): [WorkspaceMember!]!
+  projects(includeArchived: Boolean = false): [Project!]!
+  tags: [Tag!]!
+  createdAt: DateTime!
+}
+
+"""工作区成员关系"""
+type WorkspaceMember {
+  user: User!
+  role: Role!
+  joinedAt: DateTime!
+}
+
+"""工作区套餐"""
+enum Plan {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+"""成员角色"""
+enum Role {
+  OWNER
+  ADMIN
+  MEMBER
+}
+
+"""项目"""
+type Project implements Node {
+  id: ID!
+  key: String!
+  name: String!
+  color: String
+  status: ProjectStatus!
+  lead: User
+  workspace: Workspace!
+  sprints: [Sprint!]!
+  archivedAt: DateTime
+  createdAt: DateTime!
+}
+
+"""项目状态"""
+enum ProjectStatus {
+  ACTIVE
+  ARCHIVED
+}
+
+"""迭代 / 冲刺"""
+type Sprint implements Node {
+  id: ID!
+  name: String!
+  goal: String
+  startsOn: Date
+  endsOn: Date
+  status: SprintStatus!
+}
+
+"""迭代状态"""
+enum SprintStatus {
+  PLANNED
+  ACTIVE
+  CLOSED
+}
+
+"""任务"""
+type Task implements Node {
+  id: ID!
+  title: String!
+  description: String
+  status: TaskStatus!
+  priority: Priority!
+  position: Float!
+  dueDate: Date
+  project: Project!
+  sprint: Sprint
+  parent: Task
+  subtasks: [Task!]!
+  assignees: [User!]!
+  tags: [Tag!]!
+  comments(first: Int = 20): [Comment!]!
+  attachments: [Attachment!]!
+  createdBy: User!
+  createdAt: DateTime!
+  updatedAt: DateTime!
+}
+
+"""任务状态"""
+enum TaskStatus {
+  TODO
+  IN_PROGRESS
+  DONE
+}
+
+"""优先级"""
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+"""任务标签"""
+type Tag implements Node {
+  id: ID!
+  name: String!
+  color: String
+}
+
+"""评论"""
+type Comment implements Node {
+  id: ID!
+  body: String!
+  author: User!
+  parent: Comment
+  createdAt: DateTime!
+  editedAt: DateTime
+}
+
+"""附件"""
+type Attachment implements Node {
+  id: ID!
+  fileName: String!
+  mimeType: String
+  sizeBytes: Int!
+  url: String!
+  uploader: User!
+  createdAt: DateTime!
+}
+
+"""任务分页结果"""
+type TaskPage {
+  items: [Task!]!
+  pageInfo: PageInfo!
+  totalCount: Int!
+}
+
+"""游标分页信息"""
+type PageInfo {
+  hasNextPage: Boolean!
+  endCursor: String
+}
+
+"""游标分页入参"""
+input PageInput {
+  first: Int = 20
+  after: String
+}
+
+"""任务过滤条件"""
+input TaskFilter {
+  status: [TaskStatus!]
+  assigneeId: ID
+  tagId: ID
+  dueBefore: Date
+  search: String
+}
+
+"""创建任务入参"""
+input CreateTaskInput {
+  projectId: ID!
+  title: String!
+  description: String
+  sprintId: ID
+  parentId: ID
+  priority: Priority = MEDIUM
+  dueDate: Date
+  assigneeIds: [ID!]
+  tagIds: [ID!]
+}
+
+"""更新任务入参"""
+input UpdateTaskInput {
+  taskId: ID!
+  title: String
+  description: String
+  priority: Priority
+  dueDate: Date
+}
+
+"""发表评论入参"""
+input AddCommentInput {
+  taskId: ID!
+  body: String!
+  parentId: ID
+}
+
+"""搜索结果（多态）"""
+union SearchResult = Task | Project | Comment
