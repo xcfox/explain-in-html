@@ -7,7 +7,7 @@
 - `lib/ddl.js` `lib/gql.js` `lib/model.js` — 可选作者工具：SQL / GraphQL 解析与关系推断
 - `lib/inject.js` — 按起止标记替换数据区，HTML / JSON 转义
 - `lib/assemble.js` — 将相对路径模块内联为单 HTML（注释只用仓库内相对路径）
-- `lib/cli.js` `lib/render-api.js` `lib/render-erd.js` — 可选组装命令
+- `lib/cli.js` `lib/render-api.js` `lib/render-erd.js` — 可选组装命令；默认 `-o` 导出，`--serve` 才监听固定端口（占用则退出，不换端口）
 - `core/` — 与 Vue 解耦：视图模型、图模型、布局、几何、存储、分栏阈值、高亮分词
 - `runtime/composables/` — 有状态交互的单一事实来源（一钩子一文件）
 - `runtime/components/` — **一组件一 `.js` 文件**，导出 `tag`（与文件名一致）和 `define(Vue)`

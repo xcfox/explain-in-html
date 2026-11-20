@@ -48,4 +48,4 @@
 
 - 两个互相独立的单文件 HTML；运行依赖固定 Vue 3.5.13 完整生产 CDN，不是离线自包含
 - 用户打开产物无需 npm / Node / Bun
-- 可选作者工具 `node lib/render-api.js` / `node lib/render-erd.js` 解析并组装
+- 可选作者工具 `node lib/render-api.js` / `node lib/render-erd.js` 解析并组装；默认导出文件后退出，`--serve` 才 live-reload（固定端口，占用则报错）

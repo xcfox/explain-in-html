@@ -28,12 +28,14 @@ description: >-
 
 ## 用法
 
-可选作者工具（在技能根目录）：
+可选作者工具（在技能根目录）。**默认只写 HTML 后退出，不占端口。** Agent 必须用 `-o` 指定输出路径，不要启动 `--serve`，除非用户明确要求边改 schema 边预览。
 
 ```bash
 node lib/render-erd.js examples/schema.sql -n TaskFlow -o erd.html
 node lib/render-api.js examples/schema.graphql -n "TaskFlow API" -o api.html
 ```
+
+`--serve` 才起 live-reload（erd 默认 4174，api 默认 4173）。端口被占则报错退出，**不会自动换端口**。`-o` 与 `--serve` 互斥。
 
 也可用 `lib/ddl.js` / `lib/gql.js` 解析后调用 `assembleErd` / `assembleApi`。预组装示例见 `templates/api.html`、`templates/erd.html`。
 

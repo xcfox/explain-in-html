@@ -29,6 +29,7 @@
 - CDN 缺失：boot 仍写出说明且不抛引用错误
 - 架构：一组件一文件（文件名 = tag）；注册入口无 `template`；core/runtime 无 innerHTML / createElement 拼装；图模块不用 querySelector / getElementById；core 不引用 Vue
 - 可移植性 / 隐私：交付文件无本机绝对路径、工作副本路径、机器 ID；不提交 `node_modules` 或安装包；仅示例数据
+- CLI：无 `--serve` 时写出 HTML 后退出；`--serve` 与 `-o` 互斥；端口占用时报错且不换端口
 
 测试通过 `import.meta.url` 解析技能根，缓存与测试依赖使用 `os.tmpdir()` 或环境变量 `EIH_TEST_DEPS`，源码不硬编码主机路径。
 

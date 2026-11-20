@@ -1,0 +1,13 @@
+---
+description: 改完后适时提交并推送到 origin
+alwaysApply: true
+---
+
+# 提交并同步远程
+
+在本仓库完成一组完整改动后，适时创建 git commit，并 `git push` 到 `origin`（不要 force push）。
+
+- 只提交本次相关文件；不要把密钥、`node_modules`、缓存或安装包加进去
+- 提交说明写清为什么改，沿用仓库现有风格
+- 未完成或用户明确说先不要提交时，不要提交
+- GitHub SSH 若 22 端口不通，用 `ssh.github.com:443` 推送

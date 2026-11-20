@@ -11,6 +11,8 @@ node lib/render-erd.js examples/schema.sql -n TaskFlow -o erd.html
 node lib/render-api.js examples/schema.graphql -n "TaskFlow API" -o api.html
 ```
 
+默认写出 HTML 后退出（未指定 `-o` 时写到输入同名 `.html`），不占用端口。边改 schema 边看时再加 `--serve`（erd `4174` / api `4173`）；端口被占会报错，不会自动换端口。`-o` 与 `--serve` 不要一起用。
+
 不使用 Node 时，按 `SKILL.md` 的标记规则替换 `templates/` 里的数据区。打开产物只需浏览器能加载 Vue CDN（`file://` 下只要允许 HTTPS 脚本即可）。
 
 ## 源码结构
