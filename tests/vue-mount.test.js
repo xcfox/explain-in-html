@@ -158,10 +158,14 @@ test("拖拽节点后面与 hull 跟随；平移/缩放/适应/重排/引用边�
     await flush(Vue);
     assert.ok(Number.isFinite(g.pzView.k) && g.pzView.k > 0, "适应后 k 有效");
 
-    const nRef = g.edgeViews.length;
+    assert.equal(g.showRef, true, "默认应显示引用边");
+    const nDefault = g.edgeViews.length;
+    graphToggle(host, 0, false);
+    await flush(Vue);
+    assert.ok(g.edgeViews.length < nDefault, "关闭引用边后面数应少于默认");
     graphToggle(host, 0, true);
     await flush(Vue);
-    assert.ok(g.edgeViews.length >= nRef, "打开引用边后面数应不少于默认");
+    assert.equal(g.edgeViews.length, nDefault, "重新打开引用边应恢复全部边");
     graphToggle(host, 1, false);
     await flush(Vue);
     assert.equal(g.hulls.length, 0, "关闭分组后无 hull");

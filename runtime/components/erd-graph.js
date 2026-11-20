@@ -30,7 +30,7 @@ export function define(Vue) {
       const schemaName = computed(() => (props.view.data && props.view.data.name) || "schema");
       const nodes = reactive([]);
       const edges = reactive([]);
-      const showRef = ref(false);
+      const showRef = ref(true);
       const showHull = ref(true);
       const wrapEl = ref(null);
       const svgEl = ref(null);

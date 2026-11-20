@@ -5,7 +5,7 @@ export function define() {
   return {
     name,
     props: {
-      showRef: { type: Boolean, default: false },
+      showRef: { type: Boolean, default: true },
       showHull: { type: Boolean, default: true },
     },
     emits: ["update:showRef", "update:showHull", "zoom-in", "zoom-out", "fit", "relayout"],
