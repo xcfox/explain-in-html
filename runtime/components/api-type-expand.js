@@ -13,9 +13,10 @@ export function define(Vue) {
       const t = computed(() => props.types[props.name] || {});
       const label = computed(() => (KIND_LABEL[t.value.kind] || t.value.kind || "").toUpperCase());
       const headCls = computed(() => "chip-tk" + kindClass(t.value.kind));
-      return { t, label, headCls };
+      const cardCls = computed(() => "card t-exp" + kindClass(t.value.kind));
+      return { t, label, headCls, cardCls };
     },
-    template: `<div class="card t-exp" :id="withId ? 'type-' + name : undefined">
+    template: `<div :class="cardCls" :id="withId ? 'type-' + name : undefined">
       <div class="t-exp-h">
         <span :class="headCls">{{ label }}</span>
         <span class="t-exp-name">{{ name }}</span>

@@ -34,6 +34,12 @@ export function define(Vue) {
 
       const sections = computed(() => buildApiSections(view.value, filter.value, collapse.collapsed.value));
       const empty = computed(() => sections.value.length === 0);
+      const brand = computed(() => (props.api && props.api.name) || "GraphQL");
+      const stats = computed(() => {
+        const nOps = ops.value.length;
+        const nTypes = Object.keys(types.value || {}).length;
+        return `${nOps} 操作 · ${nTypes} 类型`;
+      });
       const tipView = computed(() => {
         const n = tip.tip.payload;
         const t = n && types.value[n];
@@ -65,7 +71,7 @@ export function define(Vue) {
       });
       const tipShow = computed(() => tip.tip.show);
       return {
-        types, ops, filter, sections, empty, tabs, paneW, overlay, tip, tipView, tipShow,
+        types, ops, filter, sections, empty, brand, stats, tabs, paneW, overlay, tip, tipView, tipShow,
         tabList: tabs.tabs, activeTab: tabs.active, hasTabs: tabs.hasTabs,
         tabClass, openTab, goOp, onResize, onCommit, showTip, collapse, KIND_LABEL,
         tipStyle: tip.style,
@@ -73,7 +79,7 @@ export function define(Vue) {
     },
     template: `<div class="api-root" :class="{ 'is-overlay': overlay }" style="display:flex;min-height:100vh;flex:1;">
       <main id="main">
-        <api-toolbar v-model="filter"></api-toolbar>
+        <api-toolbar v-model="filter" :brand="brand" :stats="stats"></api-toolbar>
         <div class="wrap" id="list">
           <div v-if="empty" class="list-empty">没有匹配项</div>
           <api-domain-section v-for="sec in sections" :key="sec.key" :sec="sec" :types="types" @toggle="collapse.toggle" @open-type="openTab" @tip="showTip" @tip-hide="tip.hide"></api-domain-section>

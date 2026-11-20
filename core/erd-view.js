@@ -1,7 +1,7 @@
 import { enrichSchema, fkTarget, assocEndCols } from "../lib/model.js";
 
-export const PALETTE_L = ["#5f83b4","#b08850","#5f9e83","#9b7bb8","#b87b7b","#6aa3a8","#a38b5f","#8b8fb8"];
-export const PALETTE_D = ["#7fa5d6","#d2a464","#7dc2a4","#bd9cd8","#d69c9c","#86c6ca","#c4ad78","#aab0dc"];
+export const PALETTE_L = ["#3b6fd8","#0d9488","#d97706","#7c3aed","#db2777","#0284c7","#059669","#6366f1"];
+export const PALETTE_D = ["#60a5fa","#2dd4bf","#fbbf24","#a78bfa","#f472b6","#38bdf8","#34d399","#818cf8"];
 
 export function isDarkScheme() {
   return typeof matchMedia === "function" && matchMedia("(prefers-color-scheme: dark)").matches;

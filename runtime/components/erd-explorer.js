@@ -56,7 +56,7 @@ export function define(Vue) {
         const blocks = [];
         let last = "";
         for (const t of data.value.tables || []) {
-          if (t.domain !== last) { blocks.push({ mark: t.domain }); last = t.domain; }
+          if (t.domain !== last) { blocks.push({ mark: t.domain, color: t.color }); last = t.domain; }
           blocks.push({ table: t });
         }
         return blocks;
@@ -120,6 +120,10 @@ export function define(Vue) {
       function showTableTip(n, el) { tip.show({ kind: "table", payload: n, anchor: el }, 260); }
       function showTsTip(n, el) { tip.show({ kind: "ts", payload: n, anchor: el, preferRight: true }, 120); }
       function tabClass() { return "tab"; }
+      function tabStyle(n) {
+        const t = byName.value[n];
+        return t && t.color ? { "--tac": t.color } : null;
+      }
       function onResize(w) { paneW.value = w; }
       function onCommit(w) { persist.writeText(ERD_PANE_KEY, w); }
       function onScroll() { if (mode.value === "list") spy.onScroll(tableNames.value); }
@@ -150,7 +154,7 @@ export function define(Vue) {
         tabList: tabs.tabs, activeTab: tabs.active, hasTabs: tabs.hasTabs, activeTable,
         paneWidth, paneW, sideOff, menuOpen, wide,
         tip, tipShow, tipStyle: tip.style, tipVariant, tipTable, tipTs,
-        setMode, openTab, goGraph, onNav, showTableTip, showTsTip, tabClass,
+        setMode, openTab, goGraph, onNav, showTableTip, showTsTip, tabClass, tabStyle,
         onResize, onCommit, spy, drawer, tabs,
       };
     },
@@ -167,7 +171,7 @@ export function define(Vue) {
       </main>
       <eih-side-pane :shown="hasTabs && wide" :width="paneWidth" kind="erd" @resize="onResize" @commit="onCommit">
         <template #tabs>
-          <eih-tab-strip :tabs="tabList" :active="activeTab" :tab-class="tabClass" @select="tabs.select" @close="tabs.close">
+          <eih-tab-strip :tabs="tabList" :active="activeTab" :tab-class="tabClass" :tab-style="tabStyle" @select="tabs.select" @close="tabs.close">
           </eih-tab-strip>
         </template>
         <erd-table-card v-if="activeTable" :table="activeTable" :schema="data" :by-name="byName" :types="typesByName" @open-tab="openTab" @go-graph="goGraph" @ts-tip="showTsTip" @ts-hide="tip.hideSoon" @tip="showTableTip" @tip-hide="tip.hideSoon"></erd-table-card>

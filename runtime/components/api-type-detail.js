@@ -16,8 +16,9 @@ export function define(Vue) {
       const refs = computed(() => refsOf(props.types, props.name).filter(r => props.types[r]));
       const users = computed(() => usedBy(props.ops, props.name));
       function kindOf(n) { return props.types[n] && props.types[n].kind; }
+      function refCls(n) { return "ref-chip" + kindClass(kindOf(n)); }
       function initial(k) { return (k || "q")[0]; }
-      return { t, label, headCls, refs, users, kindOf, initial };
+      return { t, label, headCls, refs, users, kindOf, refCls, initial };
     },
     template: `<div>
       <div class="head-chips"><span :class="headCls">{{ label }}</span></div>
@@ -30,7 +31,7 @@ export function define(Vue) {
       <template v-if="refs.length">
         <h2 class="sec">引用 <span class="n">REFERENCES · {{ refs.length }}</span></h2>
         <div class="ref-chips">
-          <a v-for="r in refs" :key="r" class="ref-chip" :href="'#type-' + r" @click="$emit('open-type', r, $event)" @mouseenter="$emit('tip', r, $event.currentTarget)" @mouseleave="$emit('tip-hide')">{{ r }}<span class="k">{{ kindOf(r) }}</span></a>
+          <a v-for="r in refs" :key="r" :class="refCls(r)" :href="'#type-' + r" @click="$emit('open-type', r, $event)" @mouseenter="$emit('tip', r, $event.currentTarget)" @mouseleave="$emit('tip-hide')"><span class="dot"></span>{{ r }}<span class="k">{{ kindOf(r) }}</span></a>
         </div>
       </template>
       <template v-if="users.length">
