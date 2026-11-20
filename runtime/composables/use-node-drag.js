@@ -14,11 +14,20 @@ export function useNodeDrag(Vue, { view, onDrop, onPanEnd, threshold = 4 } = {})
   function pointerDown(ev, node, edgeId = null) {
     if (disposed || drag.value || ev.button || ev.isPrimary === false) return false;
     const el = ev.currentTarget?.ownerSVGElement || ev.currentTarget || ev.target;
+    const isGroup = !!(node && Array.isArray(node.nodes));
+    const single = !isGroup && node ? node : null;
+    const items = isGroup
+      ? node.nodes.filter(Boolean).map(n => ({ node: n, nx: n.x || 0, ny: n.y || 0 }))
+      : single ? [{ node: single, nx: single.x || 0, ny: single.y || 0 }] : null;
     const d = {
-      kind: node ? "node" : "pan", node: node || null, edgeId,
+      kind: isGroup ? "group" : single ? "node" : "pan",
+      node: single,
+      group: isGroup ? (node.group || null) : null,
+      items,
+      edgeId,
       pointerId: ev.pointerId, captureEl: el, target: ev.target,
       sx: ev.clientX, sy: ev.clientY, ox: view.tx, oy: view.ty,
-      nx: node?.x || 0, ny: node?.y || 0, k: view.k || 1, moved: false,
+      nx: single?.x || 0, ny: single?.y || 0, k: view.k || 1, moved: false,
     };
     drag.value = d;
     if (el?.setPointerCapture && ev.pointerId != null) {
@@ -33,8 +42,12 @@ export function useNodeDrag(Vue, { view, onDrop, onPanEnd, threshold = 4 } = {})
     const dx = ev.clientX - d.sx, dy = ev.clientY - d.sy;
     if (Math.hypot(dx, dy) > threshold) d.moved = true;
     if (!d.moved) return;
-    if (d.node) { d.node.x = d.nx + dx / d.k; d.node.y = d.ny + dy / d.k; }
-    else { view.tx = d.ox + dx; view.ty = d.oy + dy; }
+    if (d.items) {
+      const wx = dx / d.k, wy = dy / d.k;
+      for (const it of d.items) { it.node.x = it.nx + wx; it.node.y = it.ny + wy; }
+    } else {
+      view.tx = d.ox + dx; view.ty = d.oy + dy;
+    }
   }
   function pointerUp(ev, { onTap } = {}) {
     const d = drag.value;
@@ -42,8 +55,8 @@ export function useNodeDrag(Vue, { view, onDrop, onPanEnd, threshold = 4 } = {})
     pointerMove(ev);
     drag.value = null; // clear before release can synchronously emit lostpointercapture
     release(d);
-    if (!d.moved) onTap?.({ node: d.node, edgeId: d.edgeId, target: d.target, event: ev, kind: d.kind });
-    else if (d.node) onDrop?.(d.node);
+    if (!d.moved) onTap?.({ node: d.node, group: d.group, edgeId: d.edgeId, target: d.target, event: ev, kind: d.kind });
+    else if (d.items) onDrop?.(d.node || d.items.map(it => it.node));
     else onPanEnd?.();
   }
   function pointerCancel(ev) {

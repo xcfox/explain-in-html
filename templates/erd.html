@@ -606,8 +606,15 @@
   .ge-ba rect { fill: var(--nm-bg); stroke: var(--nm-bd); stroke-width: 1; }
   .ge-ba text { font: 600 9px var(--mono); fill: var(--nm-fg); text-anchor: middle; }
 
-  .hull rect { pointer-events: none; }
-  .hull-t { font: 650 calc(12px * var(--invk)) var(--sans); letter-spacing: .08em; }
+  .hull rect { pointer-events: none; transition: fill-opacity .15s var(--ease), stroke-opacity .15s var(--ease); }
+  .hull-t {
+    font: 650 calc(12px * var(--invk)) var(--sans); letter-spacing: .08em;
+    cursor: grab; user-select: none;
+    transition: opacity .14s var(--ease), filter .14s var(--ease);
+  }
+  .hull-t:hover { filter: brightness(1.12); }
+  .hull.dragging rect { fill-opacity: .09; stroke-opacity: .68; stroke-dasharray: none; }
+  .hull.dragging .hull-t { cursor: grabbing; }
 
   /* ── 暗色（跟随系统 · Obsidian）──────────── */
   @media (prefers-color-scheme: dark) {
@@ -674,7 +681,9 @@
     .gn:hover .gn-d { fill: color-mix(in srgb, var(--nc) 28%, var(--panel)); }
     .gn.sel .gn-r, .gn.sel .gn-d { fill: color-mix(in srgb, var(--nc) 26%, var(--panel)); }
     .hull rect { fill-opacity: .085; stroke-opacity: .42; }
+    .hull.dragging rect { fill-opacity: .14; stroke-opacity: .76; }
     .hull-t { filter: brightness(1.22) saturate(1.1); }
+    .hull-t:hover { filter: brightness(1.36) saturate(1.15); }
   }
 
   /* ── 左栏抽屉：≤920px 始终收起；宽屏塞不下三栏时也收起 ── */
@@ -2424,11 +2433,20 @@ function useNodeDrag(Vue, { view, onDrop, onPanEnd, threshold = 4 } = {}) {
   function pointerDown(ev, node, edgeId = null) {
     if (disposed || drag.value || ev.button || ev.isPrimary === false) return false;
     const el = ev.currentTarget?.ownerSVGElement || ev.currentTarget || ev.target;
+    const isGroup = !!(node && Array.isArray(node.nodes));
+    const single = !isGroup && node ? node : null;
+    const items = isGroup
+      ? node.nodes.filter(Boolean).map(n => ({ node: n, nx: n.x || 0, ny: n.y || 0 }))
+      : single ? [{ node: single, nx: single.x || 0, ny: single.y || 0 }] : null;
     const d = {
-      kind: node ? "node" : "pan", node: node || null, edgeId,
+      kind: isGroup ? "group" : single ? "node" : "pan",
+      node: single,
+      group: isGroup ? (node.group || null) : null,
+      items,
+      edgeId,
       pointerId: ev.pointerId, captureEl: el, target: ev.target,
       sx: ev.clientX, sy: ev.clientY, ox: view.tx, oy: view.ty,
-      nx: node?.x || 0, ny: node?.y || 0, k: view.k || 1, moved: false,
+      nx: single?.x || 0, ny: single?.y || 0, k: view.k || 1, moved: false,
     };
     drag.value = d;
     if (el?.setPointerCapture && ev.pointerId != null) {
@@ -2443,8 +2461,12 @@ function useNodeDrag(Vue, { view, onDrop, onPanEnd, threshold = 4 } = {}) {
     const dx = ev.clientX - d.sx, dy = ev.clientY - d.sy;
     if (Math.hypot(dx, dy) > threshold) d.moved = true;
     if (!d.moved) return;
-    if (d.node) { d.node.x = d.nx + dx / d.k; d.node.y = d.ny + dy / d.k; }
-    else { view.tx = d.ox + dx; view.ty = d.oy + dy; }
+    if (d.items) {
+      const wx = dx / d.k, wy = dy / d.k;
+      for (const it of d.items) { it.node.x = it.nx + wx; it.node.y = it.ny + wy; }
+    } else {
+      view.tx = d.ox + dx; view.ty = d.oy + dy;
+    }
   }
   function pointerUp(ev, { onTap } = {}) {
     const d = drag.value;
@@ -2452,8 +2474,8 @@ function useNodeDrag(Vue, { view, onDrop, onPanEnd, threshold = 4 } = {}) {
     pointerMove(ev);
     drag.value = null; // clear before release can synchronously emit lostpointercapture
     release(d);
-    if (!d.moved) onTap?.({ node: d.node, edgeId: d.edgeId, target: d.target, event: ev, kind: d.kind });
-    else if (d.node) onDrop?.(d.node);
+    if (!d.moved) onTap?.({ node: d.node, group: d.group, edgeId: d.edgeId, target: d.target, event: ev, kind: d.kind });
+    else if (d.items) onDrop?.(d.node || d.items.map(it => it.node));
     else onPanEnd?.();
   }
   function pointerCancel(ev) {
@@ -3260,11 +3282,15 @@ const name = "ErdGraphHull";
 function define() {
   return {
     name,
-    props: { hull: { type: Object, required: true } },
+    props: {
+      hull: { type: Object, required: true },
+      dragging: { type: Boolean, default: false },
+    },
+    emits: ["pointerdown"],
     setup() { return {}; },
-    template: `<g class="hull">
+    template: `<g class="hull" :class="{ dragging }">
       <rect :x="hull.x" :y="hull.y" :width="hull.w" :height="hull.h" rx="14" :fill="hull.color" fill-opacity=".045" :stroke="hull.color" stroke-opacity=".28" stroke-dasharray="4 5"></rect>
-      <text class="hull-t" :x="hull.tx" :y="hull.ty" :fill="hull.color">{{ hull.name }}</text>
+      <text class="hull-t" :x="hull.tx" :y="hull.ty" :fill="hull.color" @pointerdown.stop="$emit('pointerdown', $event, hull)">{{ hull.name }}</text>
     </g>`,
   };
 }
@@ -3469,8 +3495,14 @@ function define(Vue) {
       }
 
       function onNodeDown(ev, node) { drag.pointerDown(ev, node); }
+      function onHullDown(ev, hull) {
+        const groupNodes = nodes.filter(n => n.domain === hull.name);
+        if (!groupNodes.length) return;
+        tip.hide();
+        drag.pointerDown(ev, { group: hull.name, nodes: groupNodes });
+      }
       function onCanvasDown(ev) {
-        if (ev.target && ev.target.closest && ev.target.closest(".gn")) return;
+        if (ev.target && ev.target.closest && ev.target.closest(".gn, .hull-t")) return;
         const edgeEl = ev.target?.closest?.(".eg");
         drag.pointerDown(ev, null, edgeEl?.getAttribute("data-id") || null);
       }
@@ -3480,8 +3512,9 @@ function define(Vue) {
       }
       function onUp(ev) {
         drag.pointerUp(ev, {
-          onTap: ({ node, edgeId }) => {
+          onTap: ({ node, group, edgeId }) => {
             if (node) { sel.select(node.name); openDetail(node.name); return; }
+            if (group) return;
             const edge = edgeId && edges.find(e => e.id === edgeId);
             if (edge) { openDetail(edgeDetailName(edge)); return; }
             sel.select(null);
@@ -3493,7 +3526,7 @@ function define(Vue) {
       }
       function onCancel(ev) { drag.pointerCancel(ev); pz.panning.value = false; }
       function onDbl(ev) {
-        if (ev.target && ev.target.closest && (ev.target.closest(".gn") || ev.target.closest(".eg"))) return;
+        if (ev.target && ev.target.closest && ev.target.closest(".gn, .eg, .hull-t")) return;
         pz.fit();
       }
       function onEnterNode(node) { sel.setHot(node.name); tip.hide(); }
@@ -3602,7 +3635,11 @@ function define(Vue) {
 
       const panning = computed(() => {
         const d = drag.drag.value;
-        return !!(d && d.moved && d.kind === "pan");
+        return !!(d && d.moved && (d.kind === "pan" || d.kind === "group"));
+      });
+      const draggingGroup = computed(() => {
+        const d = drag.drag.value;
+        return d && d.kind === "group" ? d.group : null;
       });
       const edgeTip = computed(() => tip.tip.kind === "edge" ? tip.tip.payload : null);
       const selected = sel.selected;
@@ -3614,9 +3651,9 @@ function define(Vue) {
         nodes, showRef, showHull, wrapEl, svgEl, pz, sel, tip, drag,
         cssVars, bg, pzView,
         selected, focusDomain, tipShow, tipStyle,
-        edgeViews, hulls, legend, edgeTip, panning,
+        edgeViews, hulls, legend, edgeTip, panning, draggingGroup,
         isNodeDim, isNodeHotDim, isEdgeDim, isEdgeHot,
-        onNodeDown, onCanvasDown, onMove, onUp, onCancel, onDbl,
+        onNodeDown, onHullDown, onCanvasDown, onMove, onUp, onCancel, onDbl,
         onEnterNode, onLeaveNode, onEnterEdge, onLeaveEdge,
         relayout, activate, focusNode,
       };
@@ -3634,7 +3671,7 @@ function define(Vue) {
         <g id="gVp" :transform="'translate(' + pzView.tx + ' ' + pzView.ty + ') scale(' + pzView.k + ')'">
           <rect id="gBg" fill="url(#gDots)" :x="bg.x" :y="bg.y" :width="bg.w" :height="bg.h"></rect>
           <g id="gHulls">
-            <erd-graph-hull v-for="h in hulls" :key="h.name" :hull="h"></erd-graph-hull>
+            <erd-graph-hull v-for="h in hulls" :key="h.name" :hull="h" :dragging="draggingGroup === h.name" @pointerdown="onHullDown"></erd-graph-hull>
           </g>
           <g id="gEdges">
             <erd-graph-edge v-for="v in edgeViews" :key="v.edge.id" :view="v" :dimmed="isEdgeDim(v)" :hot="isEdgeHot(v)" @enter="onEnterEdge" @leave="onLeaveEdge"></erd-graph-edge>

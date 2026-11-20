@@ -664,3 +664,61 @@ test("erd-explorer 默认进入关系图视图；切列表后经卡片聚焦进�
     assert.deepEqual({ ...g.pzView }, before); app.unmount();
   });
 });
+
+test("在组名 text.hull-t 上拖动可整组平移该域节点，其它域不动并持久化坐标", async () => {
+  const schema = exampleErd();
+  const view = buildErdView(schema, false);
+  const store = memoryStorage();
+  await withMount(async ({ Vue, document, capture }) => {
+    const host = document.createElement("div");
+    document.body.appendChild(host);
+    const app = Vue.createApp({
+      setup() { return { view, store }; },
+      template: `<erd-graph ref="g" :view="view" :storage="store" :wide="true"></erd-graph>`,
+    });
+    registerErd(app, Vue);
+    const inst = app.mount(host);
+    const wrap = host.querySelector(".graph-wrap");
+    const svg = host.querySelector("svg");
+    stubRect(wrap, { width: 900, height: 700, left: 0, top: 0 });
+    stubRect(svg, { width: 900, height: 700, left: 0, top: 0 });
+    const g = inst.$refs.g;
+    await flush(Vue, 20);
+
+    // 选一个含多张表的域（如 协作，含 3 张表）
+    const targetDomain = "协作";
+    const hullText = [...host.querySelectorAll("g.hull text.hull-t")].find(el => el.textContent.trim() === targetDomain);
+    assert.ok(hullText, "应渲染组名 text.hull-t");
+    const beforeNodes = Object.fromEntries(g.nodes.map(n => [n.name, { x: n.x, y: n.y, domain: n.domain }]));
+    const beforeHull = { ...g.hulls.find(h => h.name === targetDomain) };
+    const beforeView = { ...g.pzView };
+
+    dispatchPointer(hullText, "pointerdown", { x: 100, y: 100, pointerId: 7, win: document.defaultView });
+    await flush(Vue);
+    assert.equal(g.draggingGroup, targetDomain);
+    dispatchPointer(svg, "pointermove", { x: 220, y: 160, pointerId: 7, win: document.defaultView });
+    await flush(Vue);
+    dispatchPointer(svg, "pointerup", { x: 220, y: 160, pointerId: 7, win: document.defaultView });
+    await flush(Vue);
+
+    const dxW = 120 / beforeView.k, dyW = 60 / beforeView.k;
+    for (const n of g.nodes) {
+      const prev = beforeNodes[n.name];
+      if (n.domain === targetDomain) {
+        assert.ok(Math.abs((n.x - prev.x) - dxW) < 1e-6, `${n.name} x 应随组移动`);
+        assert.ok(Math.abs((n.y - prev.y) - dyW) < 1e-6, `${n.name} y 应随组移动`);
+      } else {
+        assert.equal(n.x, prev.x, `${n.name} 不应受其它组拖动影响`);
+        assert.equal(n.y, prev.y, `${n.name} 不应受其它组拖动影响`);
+      }
+    }
+    const afterHull = g.hulls.find(h => h.name === targetDomain);
+    assert.ok(Math.abs((afterHull.x - beforeHull.x) - dxW) < 1e-6, "hull 应随组移动");
+    assert.ok(Math.abs((afterHull.y - beforeHull.y) - dyW) < 1e-6, "hull 应随组移动");
+    assert.equal(g.pzView.tx, beforeView.tx, "整组拖动不应平移画布");
+    assert.equal(g.draggingGroup, null);
+    assert.equal(capture.active.size, 0, "松手后释放 pointer capture");
+    assert.ok(store.getItem(erdPosKey("TaskFlow")), "应持久化整组新坐标");
+    app.unmount();
+  });
+});

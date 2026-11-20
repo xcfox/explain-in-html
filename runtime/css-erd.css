@@ -599,8 +599,15 @@
   .ge-ba rect { fill: var(--nm-bg); stroke: var(--nm-bd); stroke-width: 1; }
   .ge-ba text { font: 600 9px var(--mono); fill: var(--nm-fg); text-anchor: middle; }
 
-  .hull rect { pointer-events: none; }
-  .hull-t { font: 650 calc(12px * var(--invk)) var(--sans); letter-spacing: .08em; }
+  .hull rect { pointer-events: none; transition: fill-opacity .15s var(--ease), stroke-opacity .15s var(--ease); }
+  .hull-t {
+    font: 650 calc(12px * var(--invk)) var(--sans); letter-spacing: .08em;
+    cursor: grab; user-select: none;
+    transition: opacity .14s var(--ease), filter .14s var(--ease);
+  }
+  .hull-t:hover { filter: brightness(1.12); }
+  .hull.dragging rect { fill-opacity: .09; stroke-opacity: .68; stroke-dasharray: none; }
+  .hull.dragging .hull-t { cursor: grabbing; }
 
   /* ── 暗色（跟随系统 · Obsidian）──────────── */
   @media (prefers-color-scheme: dark) {
@@ -667,7 +674,9 @@
     .gn:hover .gn-d { fill: color-mix(in srgb, var(--nc) 28%, var(--panel)); }
     .gn.sel .gn-r, .gn.sel .gn-d { fill: color-mix(in srgb, var(--nc) 26%, var(--panel)); }
     .hull rect { fill-opacity: .085; stroke-opacity: .42; }
+    .hull.dragging rect { fill-opacity: .14; stroke-opacity: .76; }
     .hull-t { filter: brightness(1.22) saturate(1.1); }
+    .hull-t:hover { filter: brightness(1.36) saturate(1.15); }
   }
 
   /* ── 左栏抽屉：≤920px 始终收起；宽屏塞不下三栏时也收起 ── */

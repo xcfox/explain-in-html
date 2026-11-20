@@ -127,8 +127,14 @@ export function define(Vue) {
       }
 
       function onNodeDown(ev, node) { drag.pointerDown(ev, node); }
+      function onHullDown(ev, hull) {
+        const groupNodes = nodes.filter(n => n.domain === hull.name);
+        if (!groupNodes.length) return;
+        tip.hide();
+        drag.pointerDown(ev, { group: hull.name, nodes: groupNodes });
+      }
       function onCanvasDown(ev) {
-        if (ev.target && ev.target.closest && ev.target.closest(".gn")) return;
+        if (ev.target && ev.target.closest && ev.target.closest(".gn, .hull-t")) return;
         const edgeEl = ev.target?.closest?.(".eg");
         drag.pointerDown(ev, null, edgeEl?.getAttribute("data-id") || null);
       }
@@ -138,8 +144,9 @@ export function define(Vue) {
       }
       function onUp(ev) {
         drag.pointerUp(ev, {
-          onTap: ({ node, edgeId }) => {
+          onTap: ({ node, group, edgeId }) => {
             if (node) { sel.select(node.name); openDetail(node.name); return; }
+            if (group) return;
             const edge = edgeId && edges.find(e => e.id === edgeId);
             if (edge) { openDetail(edgeDetailName(edge)); return; }
             sel.select(null);
@@ -151,7 +158,7 @@ export function define(Vue) {
       }
       function onCancel(ev) { drag.pointerCancel(ev); pz.panning.value = false; }
       function onDbl(ev) {
-        if (ev.target && ev.target.closest && (ev.target.closest(".gn") || ev.target.closest(".eg"))) return;
+        if (ev.target && ev.target.closest && ev.target.closest(".gn, .eg, .hull-t")) return;
         pz.fit();
       }
       function onEnterNode(node) { sel.setHot(node.name); tip.hide(); }
@@ -260,7 +267,11 @@ export function define(Vue) {
 
       const panning = computed(() => {
         const d = drag.drag.value;
-        return !!(d && d.moved && d.kind === "pan");
+        return !!(d && d.moved && (d.kind === "pan" || d.kind === "group"));
+      });
+      const draggingGroup = computed(() => {
+        const d = drag.drag.value;
+        return d && d.kind === "group" ? d.group : null;
       });
       const edgeTip = computed(() => tip.tip.kind === "edge" ? tip.tip.payload : null);
       const selected = sel.selected;
@@ -272,9 +283,9 @@ export function define(Vue) {
         nodes, showRef, showHull, wrapEl, svgEl, pz, sel, tip, drag,
         cssVars, bg, pzView,
         selected, focusDomain, tipShow, tipStyle,
-        edgeViews, hulls, legend, edgeTip, panning,
+        edgeViews, hulls, legend, edgeTip, panning, draggingGroup,
         isNodeDim, isNodeHotDim, isEdgeDim, isEdgeHot,
-        onNodeDown, onCanvasDown, onMove, onUp, onCancel, onDbl,
+        onNodeDown, onHullDown, onCanvasDown, onMove, onUp, onCancel, onDbl,
         onEnterNode, onLeaveNode, onEnterEdge, onLeaveEdge,
         relayout, activate, focusNode,
       };
@@ -292,7 +303,7 @@ export function define(Vue) {
         <g id="gVp" :transform="'translate(' + pzView.tx + ' ' + pzView.ty + ') scale(' + pzView.k + ')'">
           <rect id="gBg" fill="url(#gDots)" :x="bg.x" :y="bg.y" :width="bg.w" :height="bg.h"></rect>
           <g id="gHulls">
-            <erd-graph-hull v-for="h in hulls" :key="h.name" :hull="h"></erd-graph-hull>
+            <erd-graph-hull v-for="h in hulls" :key="h.name" :hull="h" :dragging="draggingGroup === h.name" @pointerdown="onHullDown"></erd-graph-hull>
           </g>
           <g id="gEdges">
             <erd-graph-edge v-for="v in edgeViews" :key="v.edge.id" :view="v" :dimmed="isEdgeDim(v)" :hot="isEdgeHot(v)" @enter="onEnterEdge" @leave="onLeaveEdge"></erd-graph-edge>
