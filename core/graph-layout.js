@@ -30,16 +30,17 @@ export function sizeNodes(nodes) {
 }
 
 export function deOverlap(nodes, PAD = 16) {
+  const EPS = 1e-6;
   for (let it = 0; it < 90; it++) {
     let moved = false;
     for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
       const a = nodes[i], b = nodes[j];
       const ox = (a.w + b.w) / 2 + PAD - Math.abs(a.x - b.x);
       const oy = (a.h + b.h) / 2 + PAD - Math.abs(a.y - b.y);
-      if (ox <= 0 || oy <= 0) continue;
+      if (ox <= EPS || oy <= EPS) continue;
       moved = true;
-      if (ox < oy) { const d = (a.x < b.x ? -1 : 1) * ox / 2; a.x -= d; b.x += d; }
-      else { const d = (a.y < b.y ? -1 : 1) * oy / 2; a.y -= d; b.y += d; }
+      if (ox < oy) { const d = (a.x <= b.x ? -1 : 1) * ox / 2; a.x += d; b.x -= d; }
+      else { const d = (a.y <= b.y ? -1 : 1) * oy / 2; a.y += d; b.y -= d; }
     }
     if (!moved) break;
   }
@@ -68,7 +69,7 @@ export function packDomain(nodes, edges) {
   const visDeg = n => (n.edges || []).filter(e => e.purpose !== "ref").length;
   const byRank = [];
   for (const n of nodes) (byRank[rank[n.name]] ||= []).push(n);
-  const GAP_X = 32, GAP_Y = 34, MAX_W = 480;
+  const GAP_X = 34, GAP_Y = 36, MAX_W = 540;
   const rows = [];
   for (const group of byRank) {
     if (!group) continue;
@@ -105,16 +106,19 @@ export function rectsHit(a, b, pad) {
 }
 
 export function deOverlapRects(rects, pad) {
+  const EPS = 1e-6;
   for (let it = 0; it < 60; it++) {
     let moved = false;
     for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
       const a = rects[i], b = rects[j];
-      const ox = (a.w + b.w) / 2 + pad - Math.abs((a.x + a.w / 2) - (b.x + b.w / 2));
-      const oy = (a.h + b.h) / 2 + pad - Math.abs((a.y + a.h / 2) - (b.y + b.h / 2));
-      if (ox <= 0 || oy <= 0) continue;
+      const acx = a.x + a.w / 2, bcx = b.x + b.w / 2;
+      const acy = a.y + a.h / 2, bcy = b.y + b.h / 2;
+      const ox = (a.w + b.w) / 2 + pad - Math.abs(acx - bcx);
+      const oy = (a.h + b.h) / 2 + pad - Math.abs(acy - bcy);
+      if (ox <= EPS || oy <= EPS) continue;
       moved = true;
-      if (ox < oy) { const d = (a.x < b.x ? -1 : 1) * ox / 2; a.x -= d; b.x += d; }
-      else { const d = (a.y < b.y ? -1 : 1) * oy / 2; a.y -= d; b.y += d; }
+      if (ox < oy) { const d = (acx <= bcx ? -1 : 1) * ox / 2; a.x += d; b.x -= d; }
+      else { const d = (acy <= bcy ? -1 : 1) * oy / 2; a.y += d; b.y -= d; }
     }
     if (!moved) break;
   }
@@ -168,13 +172,14 @@ export function layoutGraph(nodes, edges, groups = [], saved = {}, { hullP = HUL
   const pair = (a, b) => a < b ? a + "\0" + b : b + "\0" + a;
   const link = {};
   for (const e of edges) {
-    if (e.purpose === "ref" || e.a === e.b) continue;
+    if (e.a === e.b) continue;
     const A = byN[e.a], B = byN[e.b];
     if (!A || !B) continue;
     const da = A.domain, db = B.domain;
     if (da === db) continue;
     const k = pair(da, db);
-    link[k] = (link[k] || 0) + (e.purpose === "owner" || e.ident ? 2 : e.kind === "n:m" ? 1.5 : 1);
+    const w = e.purpose === "ref" ? 0.5 : (e.purpose === "owner" || e.ident ? 2 : e.kind === "n:m" ? 1.5 : 1);
+    link[k] = (link[k] || 0) + w;
   }
   const wLink = (a, b) => link[pair(a, b)] || 0;
   const cross = name => clusters.reduce((s, c) => s + (c.name === name ? 0 : wLink(name, c.name)), 0);
@@ -185,7 +190,7 @@ export function layoutGraph(nodes, edges, groups = [], saved = {}, { hullP = HUL
     return d || (gIndex[a.name] ?? 99) - (gIndex[b.name] ?? 99);
   });
 
-  const GAP = 52;
+  const GAP = 56;
   const ownerBias = (c, p) => {
     let child = 0, par = 0;
     for (const e of edges) {
@@ -242,7 +247,7 @@ export function layoutGraph(nodes, edges, groups = [], saved = {}, { hullP = HUL
       let s = 0;
       for (const p of anchors) {
         const w = wLink(c.name, p.name) || 1;
-        s += w * Math.hypot(cx - (p.x + p.w / 2), cy - (p.y + p.h / 2));
+        s += w * Math.hypot((cx - (p.x + p.w / 2)) * 0.75, (cy - (p.y + p.h / 2)) * 1.15);
         const bias = ownerBias(c, p);
         if (bias > 0 && cy < p.y + p.h / 2) s += bias * 240;
         if (bias < 0 && cy > p.y + p.h / 2) s += -bias * 240;
@@ -254,7 +259,8 @@ export function layoutGraph(nodes, edges, groups = [], saved = {}, { hullP = HUL
         x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y);
         x1 = Math.max(x1, p.x + p.w); y1 = Math.max(y1, p.y + p.h);
       }
-      return s + (x1 - x0 + y1 - y0) * 0.35;
+      const bw = x1 - x0, bh = y1 - y0;
+      return s + (bw + bh) * 0.35 + Math.max(0, bh * 1.35 - bw) * 0.45;
     };
 
     let best = null, bestS = 1e15;

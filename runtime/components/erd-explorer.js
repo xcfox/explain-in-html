@@ -31,7 +31,7 @@ export function define(Vue) {
       const typesByName = computed(() => view.value.typesByName);
       const { filter } = useSearch(Vue);
       const current = ref((props.schema.tables && props.schema.tables[0] && props.schema.tables[0].name) || "");
-      const mode = ref("list");
+      const mode = ref("graph");
       const graphRef = ref(null);
       const tabs = useTabs(Vue, { isOpenable: id => !!byName.value[id] });
       const defPane = defaultErdPane(typeof innerWidth === "number" ? innerWidth : 1200);

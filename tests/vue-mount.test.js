@@ -637,14 +637,22 @@ test("view structural mutations automatically update edges, adjacency, kind/doma
   });
 });
 
-test("first graph entry via card focus initializes the viewport; later list/graph roundtrip preserves it", async () => {
+test("erd-explorer 默认进入关系图视图；切列表后经卡片聚焦进入图并保留往返视野", async () => {
   await withMount(async ({ Vue, document, win }) => {
     const schema = exampleErd(), host = document.createElement("div"); document.body.append(host);
     const app = Vue.createApp({ setup: () => ({ schema }), template: `<erd-explorer ref="ex" :schema="schema"></erd-explorer>` });
     registerErd(app, Vue); const vm = app.mount(host), ex = vm.$refs.ex, g = ex.graphRef;
+    assert.equal(ex.mode, "graph", "默认应为关系图视图");
     const wrap = host.querySelector(".graph-wrap"), svg = host.querySelector("svg");
     for (const el of [wrap, svg]) el.getBoundingClientRect = () => ({ width: wrap.style.display === "none" ? 0 : 800, height: wrap.style.display === "none" ? 0 : 600, left: 0, top: 0 });
-    await flush(Vue, 30); // initial list really measures zero, unlike an unconditional size stub
+    await flush(Vue, 30);
+    const modeButtons = [...host.querySelectorAll("#modeSeg button")];
+    assert.equal(modeButtons.length, 2);
+    const graphBtn = modeButtons.find(b => b.textContent.trim() === "关系图");
+    const listBtn = modeButtons.find(b => b.textContent.trim() === "列表");
+    assert.ok(graphBtn && listBtn);
+    listBtn.click(); await flush(Vue);
+    assert.equal(ex.mode, "list");
     const card = host.querySelector("#content .g-go") || host.querySelector(".g-go");
     card.dispatchEvent(new win.MouseEvent("click", { bubbles: true })); await flush(Vue, 30);
     assert.equal(ex.mode, "graph"); assert.ok(g.selected);
@@ -652,9 +660,7 @@ test("first graph entry via card focus initializes the viewport; later list/grap
     assert.equal(selected.x * g.pzView.k + g.pzView.tx, 400);
     assert.equal(selected.y * g.pzView.k + g.pzView.ty, 300);
     const before = { ...g.pzView };
-    const modeButtons = [...host.querySelectorAll("#modeSeg button")];
-    assert.equal(modeButtons.length, 2);
-    modeButtons[0].click(); await flush(Vue); modeButtons[1].click(); await flush(Vue, 30);
+    listBtn.click(); await flush(Vue); graphBtn.click(); await flush(Vue, 30);
     assert.deepEqual({ ...g.pzView }, before); app.unmount();
   });
 });

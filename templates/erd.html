@@ -575,8 +575,8 @@
     stroke-opacity: .98;
     filter: drop-shadow(0 6px 14px rgba(15, 23, 42, .12));
   }
-  .gn .gn-t { font: 600 calc(14.5px * var(--invk)) var(--mono); fill: var(--ink); text-anchor: middle; }
-  .gn .gn-ts { font-size: calc(12.5px * var(--invk)); font-weight: 600; fill: var(--ink2); }
+  .gn .gn-t { font: 600 13.5px var(--mono); fill: var(--ink); text-anchor: middle; }
+  .gn .gn-ts { font-size: 12px; font-weight: 600; fill: var(--ink2); }
   .gn.sel .gn-r, .gn.sel .gn-d {
     fill: color-mix(in srgb, var(--nc) 16%, var(--panel));
     stroke-width: 2.3;
@@ -1425,16 +1425,17 @@ function sizeNodes(nodes) {
 }
 
 function deOverlap(nodes, PAD = 16) {
+  const EPS = 1e-6;
   for (let it = 0; it < 90; it++) {
     let moved = false;
     for (let i = 0; i < nodes.length; i++) for (let j = i + 1; j < nodes.length; j++) {
       const a = nodes[i], b = nodes[j];
       const ox = (a.w + b.w) / 2 + PAD - Math.abs(a.x - b.x);
       const oy = (a.h + b.h) / 2 + PAD - Math.abs(a.y - b.y);
-      if (ox <= 0 || oy <= 0) continue;
+      if (ox <= EPS || oy <= EPS) continue;
       moved = true;
-      if (ox < oy) { const d = (a.x < b.x ? -1 : 1) * ox / 2; a.x -= d; b.x += d; }
-      else { const d = (a.y < b.y ? -1 : 1) * oy / 2; a.y -= d; b.y += d; }
+      if (ox < oy) { const d = (a.x <= b.x ? -1 : 1) * ox / 2; a.x += d; b.x -= d; }
+      else { const d = (a.y <= b.y ? -1 : 1) * oy / 2; a.y += d; b.y -= d; }
     }
     if (!moved) break;
   }
@@ -1463,7 +1464,7 @@ function packDomain(nodes, edges) {
   const visDeg = n => (n.edges || []).filter(e => e.purpose !== "ref").length;
   const byRank = [];
   for (const n of nodes) (byRank[rank[n.name]] ||= []).push(n);
-  const GAP_X = 32, GAP_Y = 34, MAX_W = 480;
+  const GAP_X = 34, GAP_Y = 36, MAX_W = 540;
   const rows = [];
   for (const group of byRank) {
     if (!group) continue;
@@ -1500,16 +1501,19 @@ function rectsHit(a, b, pad) {
 }
 
 function deOverlapRects(rects, pad) {
+  const EPS = 1e-6;
   for (let it = 0; it < 60; it++) {
     let moved = false;
     for (let i = 0; i < rects.length; i++) for (let j = i + 1; j < rects.length; j++) {
       const a = rects[i], b = rects[j];
-      const ox = (a.w + b.w) / 2 + pad - Math.abs((a.x + a.w / 2) - (b.x + b.w / 2));
-      const oy = (a.h + b.h) / 2 + pad - Math.abs((a.y + a.h / 2) - (b.y + b.h / 2));
-      if (ox <= 0 || oy <= 0) continue;
+      const acx = a.x + a.w / 2, bcx = b.x + b.w / 2;
+      const acy = a.y + a.h / 2, bcy = b.y + b.h / 2;
+      const ox = (a.w + b.w) / 2 + pad - Math.abs(acx - bcx);
+      const oy = (a.h + b.h) / 2 + pad - Math.abs(acy - bcy);
+      if (ox <= EPS || oy <= EPS) continue;
       moved = true;
-      if (ox < oy) { const d = (a.x < b.x ? -1 : 1) * ox / 2; a.x -= d; b.x += d; }
-      else { const d = (a.y < b.y ? -1 : 1) * oy / 2; a.y -= d; b.y += d; }
+      if (ox < oy) { const d = (acx <= bcx ? -1 : 1) * ox / 2; a.x += d; b.x -= d; }
+      else { const d = (acy <= bcy ? -1 : 1) * oy / 2; a.y += d; b.y -= d; }
     }
     if (!moved) break;
   }
@@ -1563,13 +1567,14 @@ function layoutGraph(nodes, edges, groups = [], saved = {}, { hullP = HULL_P, hu
   const pair = (a, b) => a < b ? a + "\0" + b : b + "\0" + a;
   const link = {};
   for (const e of edges) {
-    if (e.purpose === "ref" || e.a === e.b) continue;
+    if (e.a === e.b) continue;
     const A = byN[e.a], B = byN[e.b];
     if (!A || !B) continue;
     const da = A.domain, db = B.domain;
     if (da === db) continue;
     const k = pair(da, db);
-    link[k] = (link[k] || 0) + (e.purpose === "owner" || e.ident ? 2 : e.kind === "n:m" ? 1.5 : 1);
+    const w = e.purpose === "ref" ? 0.5 : (e.purpose === "owner" || e.ident ? 2 : e.kind === "n:m" ? 1.5 : 1);
+    link[k] = (link[k] || 0) + w;
   }
   const wLink = (a, b) => link[pair(a, b)] || 0;
   const cross = name => clusters.reduce((s, c) => s + (c.name === name ? 0 : wLink(name, c.name)), 0);
@@ -1580,7 +1585,7 @@ function layoutGraph(nodes, edges, groups = [], saved = {}, { hullP = HULL_P, hu
     return d || (gIndex[a.name] ?? 99) - (gIndex[b.name] ?? 99);
   });
 
-  const GAP = 52;
+  const GAP = 56;
   const ownerBias = (c, p) => {
     let child = 0, par = 0;
     for (const e of edges) {
@@ -1637,7 +1642,7 @@ function layoutGraph(nodes, edges, groups = [], saved = {}, { hullP = HULL_P, hu
       let s = 0;
       for (const p of anchors) {
         const w = wLink(c.name, p.name) || 1;
-        s += w * Math.hypot(cx - (p.x + p.w / 2), cy - (p.y + p.h / 2));
+        s += w * Math.hypot((cx - (p.x + p.w / 2)) * 0.75, (cy - (p.y + p.h / 2)) * 1.15);
         const bias = ownerBias(c, p);
         if (bias > 0 && cy < p.y + p.h / 2) s += bias * 240;
         if (bias < 0 && cy > p.y + p.h / 2) s += -bias * 240;
@@ -1649,7 +1654,8 @@ function layoutGraph(nodes, edges, groups = [], saved = {}, { hullP = HULL_P, hu
         x0 = Math.min(x0, p.x); y0 = Math.min(y0, p.y);
         x1 = Math.max(x1, p.x + p.w); y1 = Math.max(y1, p.y + p.h);
       }
-      return s + (x1 - x0 + y1 - y0) * 0.35;
+      const bw = x1 - x0, bh = y1 - y0;
+      return s + (bw + bh) * 0.35 + Math.max(0, bh * 1.35 - bw) * 0.45;
     };
 
     let best = null, bestS = 1e15;
@@ -1793,9 +1799,9 @@ function edgeScreenLen(e, byN, k) {
   return Math.hypot(B.x - A.x, B.y - A.y) * (k || 1);
 }
 
-function labelHitsNode(ge, nodes, pad = 12) {
+function labelHitsNode(ge, nodes, pad = 12, halfW = 0) {
   for (const n of nodes) {
-    if (Math.abs(ge.lx - n.x) < n.w / 2 + pad && Math.abs(ge.ly - n.y) < n.h / 2 + pad) return true;
+    if (Math.abs(ge.lx - n.x) < n.w / 2 + halfW + pad && Math.abs(ge.ly - n.y) < n.h / 2 + pad) return true;
   }
   return false;
 }
@@ -1805,9 +1811,9 @@ function edgeChrome(e, ge, nodes, byN, k) {
   const label = edgeLabel(e);
   const sl = edgeScreenLen(e, byN, k);
   const lw = label ? textW(label, 12) + (e.kind === "n:m" && (e.attrs || []).length ? 26 : 0) : 0;
-  const showL = !!label && sl > lw + 36 && (e.a === e.b || !labelHitsNode(ge, nodes));
-  const showT = sl > 64;
   const lwU = textW(label || "", 12) * inv;
+  const showL = !!label && sl > lw + 36 && (e.a === e.b || !labelHitsNode(ge, nodes, 8, lwU / 2));
+  const showT = sl > 64;
   const toff = 12 * inv;
   const ticks = edgeTicks(e);
   return {
@@ -1885,7 +1891,7 @@ function fitViewTransform(nodes, viewSize, { showHull } = {}) {
   const { x0, y0, x1, y1 } = nodesBounds(nodes, { showHull });
   const bw = x1 - x0 + 32, bh = y1 - y0 + 32;
   const k0 = Math.min((width - 64) / bw, (height - 64) / bh);
-  const k = Math.min(1.25, Math.max(0.7, k0));
+  const k = Math.min(1.25, Math.max(0.35, k0));
   return {
     k,
     tx: (width - (x0 + x1) * k) / 2,
@@ -2926,7 +2932,7 @@ function define() {
     name,
     props: {
       brand: { type: String, default: "" },
-      mode: { type: String, default: "list" },
+      mode: { type: String, default: "graph" },
       filter: { type: String, default: "" },
     },
     emits: ["update:filter", "mode", "menu"],
@@ -2934,8 +2940,8 @@ function define() {
     template: `<div class="side-head">
       <div class="brand"><span class="brand-dot"></span><span id="brandName">{{ brand }}</span><span class="brand-sub">Schema</span></div>
       <div class="seg" id="modeSeg">
-        <button type="button" :class="{ on: mode === 'list' }" @click="$emit('mode', 'list')">列表</button>
         <button type="button" :class="{ on: mode === 'graph' }" @click="$emit('mode', 'graph')">关系图</button>
+        <button type="button" :class="{ on: mode === 'list' }" @click="$emit('mode', 'list')">列表</button>
       </div>
       <div class="search-box">
         <svg class="search-ico" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>
@@ -3702,7 +3708,7 @@ function define(Vue) {
       const typesByName = computed(() => view.value.typesByName);
       const { filter } = useSearch(Vue);
       const current = ref((props.schema.tables && props.schema.tables[0] && props.schema.tables[0].name) || "");
-      const mode = ref("list");
+      const mode = ref("graph");
       const graphRef = ref(null);
       const tabs = useTabs(Vue, { isOpenable: id => !!byName.value[id] });
       const defPane = defaultErdPane(typeof innerWidth === "number" ? innerWidth : 1200);

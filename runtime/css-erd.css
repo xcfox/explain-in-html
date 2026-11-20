@@ -568,8 +568,8 @@
     stroke-opacity: .98;
     filter: drop-shadow(0 6px 14px rgba(15, 23, 42, .12));
   }
-  .gn .gn-t { font: 600 calc(14.5px * var(--invk)) var(--mono); fill: var(--ink); text-anchor: middle; }
-  .gn .gn-ts { font-size: calc(12.5px * var(--invk)); font-weight: 600; fill: var(--ink2); }
+  .gn .gn-t { font: 600 13.5px var(--mono); fill: var(--ink); text-anchor: middle; }
+  .gn .gn-ts { font-size: 12px; font-weight: 600; fill: var(--ink2); }
   .gn.sel .gn-r, .gn.sel .gn-d {
     fill: color-mix(in srgb, var(--nc) 16%, var(--panel));
     stroke-width: 2.3;

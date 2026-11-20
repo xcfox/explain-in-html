@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { parseDDL } from "../lib/ddl.js";
 import { buildErdView } from "../core/erd-view.js";
-import { layoutFromView } from "../core/graph-layout.js";
+import { layoutFromView, deOverlap, deOverlapRects, rectsHit } from "../core/graph-layout.js";
 import { visibleEdges, assignEdgeOffsets } from "../core/graph-model.js";
 import { deriveEdgeViews, computeHulls, edgeGeom, zoomAtTransform, fitViewTransform } from "../core/graph-geometry.js";
 import { skillPath } from "./helpers.js";
@@ -132,4 +132,67 @@ test("窄屏 API 使用覆盖层钳制，不把主栏挤到约 55px", () => {
   const w = clampApiPane(560, 375);
   assert.ok(w <= 375 - 24);
   assert.ok(w >= Math.min(API_PANE_MIN, 375 - 24));
+});
+
+test("deOverlap 与 deOverlapRects 把重叠或紧贴的矩形推开而非拉近", () => {
+  const nodes = [
+    { x: 0, y: 0, w: 140, h: 52 },
+    { x: 40, y: 5, w: 180, h: 52 },
+    { x: 150, y: 0, w: 140, h: 52 },
+  ];
+  deOverlap(nodes, 16);
+  for (let i = 0; i < nodes.length; i++) {
+    for (let j = i + 1; j < nodes.length; j++) {
+      const a = nodes[i], b = nodes[j];
+      const ox = (a.w + b.w) / 2 + 16 - Math.abs(a.x - b.x);
+      const oy = (a.h + b.h) / 2 + 16 - Math.abs(a.y - b.y);
+      assert.ok(ox <= 1e-4 || oy <= 1e-4, `node ${i} and ${j} still overlap: ${ox}x${oy}`);
+    }
+  }
+
+  const rects = [
+    { x: 0, y: 0, w: 420.6, h: 182 },
+    { x: 420.6 + 56 - 1e-13, y: 0, w: 392.7, h: 354 },
+    { x: 100, y: 40, w: 460.1, h: 354 },
+  ];
+  deOverlapRects(rects, 56);
+  for (let i = 0; i < rects.length; i++) {
+    for (let j = i + 1; j < rects.length; j++) {
+      assert.equal(rectsHit(rects[i], rects[j], 55.9), false, `rect ${i} and ${j} must not overlap`);
+    }
+  }
+});
+
+test("多域长表名 Schema 布局后所有域 hull 与节点严格不重叠，且 fitViewTransform 能完整缩小适配", () => {
+  const domains = ["域一", "域二", "域三", "域四", "域五", "域六"];
+  const tables = [];
+  domains.forEach((d, di) => {
+    for (let i = 0; i < 4; i++) {
+      tables.push({
+        name: `long_domain_${di}_entity_table_${i}_name`,
+        domain: d,
+        columns: [{ name: "id", type: "bigint", pk: 1 }],
+        indexes: [],
+      });
+    }
+  });
+  const data = {
+    name: "MultiDomain",
+    tables,
+    relations: [
+      { kind: "n:1", a: tables[4].name, b: tables[0].name, aCols: ["p_id"], bCols: ["id"], purpose: "owner" },
+      { kind: "n:1", a: tables[4].name, b: tables[8].name, aCols: ["r_id"], bCols: ["id"], purpose: "ref" },
+    ],
+  };
+  const view = buildErdView(data, false);
+  const model = layoutFromView(view, {});
+  const hulls = computeHulls(model.nodes);
+  assert.equal(hulls.length, 6);
+  for (let i = 0; i < hulls.length; i++) {
+    for (let j = i + 1; j < hulls.length; j++) {
+      assert.equal(rectsHit(hulls[i], hulls[j], 0), false, `hull ${hulls[i].name} vs ${hulls[j].name}`);
+    }
+  }
+  const fit = fitViewTransform(model.nodes, { width: 800, height: 500 }, { showHull: true });
+  assert.ok(fit.k >= 0.35 && fit.k < 0.7, `large schema should zoom out to fit, got k=${fit.k}`);
 });

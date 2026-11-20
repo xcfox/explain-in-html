@@ -77,9 +77,9 @@ export function edgeScreenLen(e, byN, k) {
   return Math.hypot(B.x - A.x, B.y - A.y) * (k || 1);
 }
 
-export function labelHitsNode(ge, nodes, pad = 12) {
+export function labelHitsNode(ge, nodes, pad = 12, halfW = 0) {
   for (const n of nodes) {
-    if (Math.abs(ge.lx - n.x) < n.w / 2 + pad && Math.abs(ge.ly - n.y) < n.h / 2 + pad) return true;
+    if (Math.abs(ge.lx - n.x) < n.w / 2 + halfW + pad && Math.abs(ge.ly - n.y) < n.h / 2 + pad) return true;
   }
   return false;
 }
@@ -89,9 +89,9 @@ export function edgeChrome(e, ge, nodes, byN, k) {
   const label = edgeLabel(e);
   const sl = edgeScreenLen(e, byN, k);
   const lw = label ? textW(label, 12) + (e.kind === "n:m" && (e.attrs || []).length ? 26 : 0) : 0;
-  const showL = !!label && sl > lw + 36 && (e.a === e.b || !labelHitsNode(ge, nodes));
-  const showT = sl > 64;
   const lwU = textW(label || "", 12) * inv;
+  const showL = !!label && sl > lw + 36 && (e.a === e.b || !labelHitsNode(ge, nodes, 8, lwU / 2));
+  const showT = sl > 64;
   const toff = 12 * inv;
   const ticks = edgeTicks(e);
   return {
@@ -169,7 +169,7 @@ export function fitViewTransform(nodes, viewSize, { showHull } = {}) {
   const { x0, y0, x1, y1 } = nodesBounds(nodes, { showHull });
   const bw = x1 - x0 + 32, bh = y1 - y0 + 32;
   const k0 = Math.min((width - 64) / bw, (height - 64) / bh);
-  const k = Math.min(1.25, Math.max(0.7, k0));
+  const k = Math.min(1.25, Math.max(0.35, k0));
   return {
     k,
     tx: (width - (x0 + x1) * k) / 2,
